@@ -1,21 +1,18 @@
-import React from 'react'
-import logo  from "../assets/xenssen_logo.png"
+import logo from "../assets/xenssen_logo.png";
 
-function AuthLayout({children}) {
+function AuthLayout({ children }) {
   return (
-   <>
-        <header className='flex justify-center items-center py-3 h-20 shadow-md bg-gray-900'>
-            {/* <img src={logo}
-            alt="logo"
-            height={40} 
-            width={160} 
-            /> */}
-            <span className='text-red-600 text-2xl'>Textora</span>
-        </header>
+    <>
+      <header className="flex justify-center items-center py-4 h-24 shadow-lg bg-primary">
+        <div className="flex items-center">
+          <img src={logo} alt="logo" className="h-12 mr-3" />
+          <span className="text-white text-3xl font-bold">Textora</span>
+        </div>
+      </header>
 
-        {children}
-   </>
-  )
+      {children}
+    </>
+  );
 }
 
-export default AuthLayout
+export default AuthLayout;
