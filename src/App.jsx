@@ -1,8 +1,9 @@
 import React from 'react'
+import { Outlet } from 'react-router-dom'
 
 function App() {
   return (
-    <div>Arnab is the next big thing</div>
+    <Outlet/>
   )
 }
 
