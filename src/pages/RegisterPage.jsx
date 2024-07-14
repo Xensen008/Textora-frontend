@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { IoClose } from 'react-icons/io5';
-import { Link } from 'react-router-dom';
-
+import { Link, useNavigate } from 'react-router-dom';
+import uploadFile from '../utils/uploadFile';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 function RegisterPage() {
   const [data, setData] = useState({
     name: '',
@@ -9,21 +11,25 @@ function RegisterPage() {
     password: '',
     profile_pic: '',
   });
+  const navigate = useNavigate();
   const [uploadPhoto, setUploadPhoto] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleUploadPic = (e) => {
+  const handleUploadPic = async (e) => {
     const file = e.target.files[0];
     if (file) {
       setIsUploading(true);
-      setTimeout(() => {
-        setUploadPhoto(file);
-        setData({ ...data, profile_pic: file.name });
+      try {
+        const resData = await uploadFile(file);
+        setUploadPhoto(file); 
+        setData({ ...data, profile_pic: resData.url }); 
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      } finally {
         setIsUploading(false);
-      }, 2000);
+      }
     }
   };
-
   const handleOnChange = (e) => {
     const { name, value } = e.target;
     setData((prev) => ({
@@ -39,9 +45,27 @@ function RegisterPage() {
     setData({ ...data, profile_pic: '' });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(data);
+    const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/register`;
+    try {
+      const response = await axios.post(url, data);
+      console.log('Registration successful', response.data);
+      toast.success(response.data.message);
+      if(response.data.success){
+        setData({
+          name: '',
+          email: '',
+          password: '',
+          profile_pic: '', 
+        });
+        navigate('/email');
+      }
+    } catch (error) {
+      toast.error('Registration failed',error.response?.data.message);
+      // console.error('Registration failed', error.response.data);
+
+    }
   };
 
   return (
@@ -133,7 +157,7 @@ function RegisterPage() {
               Register
             </button>
             <p className="text-sm text-primary hover:text-primary">
-              Already have an account? <Link to="/login" className="hover:text-primary font-bold">Login</Link>
+              Already have an account? <Link to="/email" className="hover:text-primary font-bold">Login</Link>
             </p>
           </div>
         </form>
