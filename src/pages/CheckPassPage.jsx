@@ -30,9 +30,20 @@ function CheckPassPage() {
     e.preventDefault();
     const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/password`;
     try {
+      //const response = await axios({
+      //  method: 'POST',
+      //  url: url,
+      //  data: {
+      //    userId: location?.state?._id,
+      //    password: data.password,
+      //  },
+      //  withCredentials: true,
+      //});
       const response = await axios.post(url, {
         userId: location?.state?._id,
         password: data.password,
+      }, {
+        withCredentials: true 
       });
       console.log('response:', response);
       if (!response.data.error) {
