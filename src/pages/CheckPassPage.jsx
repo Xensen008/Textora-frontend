@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import Avatar from '../components/Avatar';
+import { useDispatch } from 'react-redux';
+import { setToken } from '../stores/userSlice';
 
 function CheckPassPage() {
   const navigate = useNavigate();
@@ -11,6 +13,7 @@ function CheckPassPage() {
     password: '',
   });
   const location = useLocation();
+  const dispatch = useDispatch();
   
   useEffect(() => {
     if (!location?.state?.name) {
@@ -30,24 +33,17 @@ function CheckPassPage() {
     e.preventDefault();
     const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/password`;
     try {
-      //const response = await axios({
-      //  method: 'POST',
-      //  url: url,
-      //  data: {
-      //    userId: location?.state?._id,
-      //    password: data.password,
-      //  },
-      //  withCredentials: true,
-      //});
       const response = await axios.post(url, {
         userId: location?.state?._id,
         password: data.password,
       }, {
         withCredentials: true 
       });
-      console.log('response:', response);
+
       if (!response.data.error) {
         toast.success(response.data.message);
+        dispatch(setToken(response?.data?.token))
+        localStorage.setItem('token', response?.data?.token)
         console.log('Login successful, navigating to /');
         setData({
           password: '',
