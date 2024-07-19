@@ -16,19 +16,19 @@ const router = createBrowserRouter([
         children:[
             {
                 path:"register",
-                element: <AuthLayout><RegisterPage/></AuthLayout> 
+                element: <RegisterPage/> 
             },
             {
                 path:"email",
-                element:<AuthLayout><CheckEmailPage/></AuthLayout>  
+                element:<CheckEmailPage/>  
             },
             {
                 path:"password",
-                element:<AuthLayout><CheckPassPage/></AuthLayout>
+                element:<CheckPassPage/>
             },
             {
                 path:"forgot-password",
-                element:<AuthLayout><ForgotPasswordPage/></AuthLayout>
+                element:<ForgotPasswordPage/>
             },
             {
                 path:"",

@@ -1,35 +1,42 @@
-import React, { useState } from 'react';
-import { IoClose } from 'react-icons/io5';
-import { Link, useNavigate } from 'react-router-dom';
-import uploadFile from '../utils/uploadFile';
-import axios from 'axios';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import { IoClose } from "react-icons/io5";
+import { Link, useNavigate } from "react-router-dom";
+import uploadFile from "../utils/uploadFile";
+import axios from "axios";
+import { toast, Toaster } from "react-hot-toast";
+
 function RegisterPage() {
   const [data, setData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    profile_pic: '',
+    name: "",
+    email: "",
+    password: "",
+    profile_pic: "",
   });
   const navigate = useNavigate();
-  const [uploadPhoto, setUploadPhoto] = useState('');
+  const [uploadPhoto, setUploadPhoto] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const handleUploadPic = async (e) => {
     const file = e.target.files[0];
     if (file) {
       setIsUploading(true);
+      toast.loading("Uploading...");
       try {
         const resData = await uploadFile(file);
-        setUploadPhoto(file); 
-        setData({ ...data, profile_pic: resData.url }); 
+        setUploadPhoto(file);
+        setData({ ...data, profile_pic: resData.url });
+        toast.dismiss();
+        toast.success("Upload successful!");
       } catch (error) {
         console.error("Error uploading file:", error);
+        toast.dismiss();
+        toast.error("Upload failed");
       } finally {
         setIsUploading(false);
       }
     }
   };
+
   const handleOnChange = (e) => {
     const { name, value } = e.target;
     setData((prev) => ({
@@ -41,8 +48,9 @@ function RegisterPage() {
   const handleClear = (e) => {
     e.stopPropagation();
     e.preventDefault();
-    setUploadPhoto('');
-    setData({ ...data, profile_pic: '' });
+    setUploadPhoto("");
+    setData({ ...data, profile_pic: "" });
+    toast("Photo removed");
   };
 
   const handleSubmit = async (e) => {
@@ -50,117 +58,112 @@ function RegisterPage() {
     const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/register`;
     try {
       const response = await axios.post(url, data);
-      console.log('Registration successful', response.data);
+      console.log("Registration successful", response.data);
       toast.success(response.data.message);
-      if(response.data.success){
+      if (response.data.success) {
         setData({
-          name: '',
-          email: '',
-          password: '',
-          profile_pic: '', 
+          name: "",
+          email: "",
+          password: "",
+          profile_pic: "",
         });
-        navigate('/email');
+        navigate("/email");
       }
     } catch (error) {
-      toast.error('Registration failed',error.response?.data.message);
-      // console.error('Registration failed', error.response.data);
-
+      toast.error("Registration failed", error.response?.data.message);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-md mx-3 bg-white rounded-lg shadow-lg p-8">
-        <h3 className="text-4xl font-bold text-primary mb-4">
-          Welcome to Textora
-        </h3>
-        <h4 className="text-xl text-primary mb-6">
-          Define your Aura
-        </h4>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4 flex flex-col gap-1">
-            <label htmlFor="name" className="block text-primary">
-              Name
-            </label>
+    <div
+      className="flex items-center justify-center min-h-screen"
+      style={{ backgroundColor: "#b7c0b3", paddingTop: 0 }}
+    >
+      <div
+        className="w-full max-w-lg p-8 rounded-xl shadow-lg"
+        style={{ backgroundColor: "#fff" }}
+      >
+        <Toaster position="top-center" />
+        <div className="text-center">
+          <h1 className="text-4xl font-bold" style={{ color: "#082b1a" }}>
+            Welcome To Textora
+          </h1>
+          <h2 className="text-2xl mt-2" style={{ color: "#082b1a" }}>
+            Register
+          </h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-4">
             <input
               type="text"
-              id="name"
               name="name"
-              placeholder="Enter your name"
-              className="w-full px-4 py-2 border rounded-md focus:ring-primary focus:outline-primary focus:outline-none"
-              value={data.name}
+              placeholder="Full Name"
               onChange={handleOnChange}
+              value={data.name}
+              className="input py-2 text-base" // Increased padding and base text size
               required
             />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-primary">
-              Email
-            </label>
             <input
               type="email"
-              id="email"
               name="email"
-              placeholder="Enter your email"
-              className="w-full px-4 py-2 border rounded-md focus:ring-primary focus:outline-primary focus:outline-none"
-              value={data.email}
+              placeholder="Email Address"
               onChange={handleOnChange}
+              value={data.email}
+              className="input py-2 text-base" // Increased padding and base text size
               required
             />
-          </div>
-          <div className="mb-6">
-            <label htmlFor="password" className="block text-primary">
-              Password
-            </label>
             <input
               type="password"
-              id="password"
               name="password"
-              placeholder="Enter your password"
-              className="w-full px-4 py-2 border rounded-md focus:ring-primary focus:outline-primary focus:outline-none"
-              value={data.password}
+              placeholder="Password"
               onChange={handleOnChange}
+              value={data.password}
+              className="input py-2 text-base" // Increased padding and base text size
               required
             />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="profile_pic" className="block text-primary">
-              Profile pic
-              <div className="h-14 bg-slate-200 flex justify-center items-center border hover:border-primary rounded text-sm cursor-pointer">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="profile_pic"
+                className="flex items-center cursor-pointer text-[#082b1a]"
+              >
+                <span className="mr-2">Profile Picture</span>
                 {isUploading ? (
-                  <p>Uploading...</p>
+                  <span>Uploading...</span>
                 ) : (
-                  <p className="text-sm max-w-[300px] text-ellipsis line-clamp-1">
-                    {uploadPhoto?.name || "Upload profile Photo"}
-                  </p>
+                  <span className="text-sm">
+                    {data.profile_pic ? "File selected" : "Choose file"}
+                  </span>
                 )}
-                {uploadPhoto?.name && (
-                  <button type="button" className="text-lg ml-2 hover:text-red-600" onClick={handleClear}>
-                    <IoClose />
-                  </button>
-                )}
-              </div>
-            </label>
-            <input
-              type="file"
-              id="profile_pic"
-              name="profile_pic"
-              onChange={handleUploadPic}
-              className="w-full px-4 py-2 border rounded-md focus:ring-primary focus:outline-primary focus:outline-none hidden"
-            />
+              </label>
+              {data.profile_pic && (
+                <IoClose
+                  className="text-red-500 cursor-pointer"
+                  onClick={handleClear}
+                />
+              )}
+              <input
+                type="file"
+                id="profile_pic"
+                name="profile_pic"
+                onChange={handleUploadPic}
+                className="hidden"
+              />
+            </div>
           </div>
-          <div className="flex items-center justify-between">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary focus:outline-none"
-            >
-              Register
-            </button>
-            <p className="text-sm text-primary hover:text-primary">
-              Already have an account? <Link to="/email" className="hover:text-primary font-bold">Login</Link>
-            </p>
-          </div>
+          <button
+            type="submit"
+            className="w-full py-2 mt-4 rounded-full"
+            style={{ backgroundColor: "#0a3822", color: "#fff" }}
+          >
+            Register
+          </button>
         </form>
+        <p className="mt-4 text-center text-sm" style={{ color: "#082b1a" }}>
+          Already have an account?{" "}
+          <a href="/email" className="font-medium underline">
+            Log in
+          </a>
+        </p>
       </div>
     </div>
   );

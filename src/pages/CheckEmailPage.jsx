@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import toast from 'react-hot-toast';
-import {PiUserCircle} from 'react-icons/pi'
+import toast, { Toaster } from 'react-hot-toast';
+import { PiUserCircle } from 'react-icons/pi';
 
 function CheckEmailPage() {
   const [data, setData] = useState({
@@ -18,7 +18,6 @@ function CheckEmailPage() {
     }));
   };
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/email`;
@@ -28,60 +27,67 @@ function CheckEmailPage() {
       if (response.data.success) {
         setData({
           email: '',
-        }); 
-        setTimeout(() => navigate(`/password`,{
-          state:response?.data?.data
+        });
+        setTimeout(() => navigate(`/password`, {
+          state: response?.data?.data
         }), 500);
       }
     } catch (error) {
       toast.error(error.response?.data.message);
-     
     }
   };
+
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-md mx-3 bg-white rounded-lg shadow-lg p-8">
-        <h3 className="text-4xl font-bold text-primary mb-4">
-          Welcome to Textora
-        </h3>
-        <h4 className="text-xl text-primary mb-6">
-          Define your Aura
-        </h4>
-        <form onSubmit={handleSubmit}>
+    <div
+      className="flex items-center justify-center min-h-screen"
+      style={{ backgroundColor: "#b7c0b3", paddingTop: 0 }}
+    >
+      <div
+        className="w-full max-w-lg p-8 rounded-xl shadow-lg"
+        style={{ backgroundColor: "#fff" }}
+      >
+        <Toaster position="top-center" />
+        <div className="text-center">
+          <h1 className="text-4xl font-bold" style={{ color: "#082b1a" }}>
+            Welcome To Textora
+          </h1>
+          <h2 className="text-2xl mt-2" style={{ color: "#082b1a" }}>
+            Check Your Email
+          </h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-4">
             <div className='w-fit mx-auto mb-2'>
-            <PiUserCircle
-            size={80}/>
-          </div>
-          <div className="mb-1">
-            <label htmlFor="email" className="block text-primary">
-              Email
-            </label>
+              <PiUserCircle size={80} />
+            </div>
             <input
               type="email"
               id="email"
               name="email"
               placeholder="Enter your email"
-              className="w-full px-4 py-2 border rounded-md focus:ring-primary focus:outline-primary mt-3 focus:outline-none"
-              value={data.email}
               onChange={handleOnChange}
+              value={data.email}
+              className="input py-2 text-base" // Adjusted for consistency
               required
             />
           </div>
-          <div className="flex items-center justify-between">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary focus:outline-none mt-3"
-            >
-              Lets go
-            </button>
-            <p className="text-sm text-primary hover:text-primary">
-              Don't have an account? <Link to="/register" className="hover:text-primary font-bold">Register</Link>
-            </p>
-          </div>
+          <button
+            type="submit"
+            className="w-full py-2 mt-4 rounded-full"
+            style={{ backgroundColor: "#0a3822", color: "#fff" }}
+          >
+            Let's Go
+          </button>
+          <p className="mt-4 text-center text-sm" style={{ color: "#082b1a" }}>
+            Don't have an account?{" "}
+            <Link to="/register" className="font-medium underline">
+              Register
+            </Link>
+          </p>
         </form>
       </div>
     </div>
-  )
+  );
 }
 
-export default CheckEmailPage
+export default CheckEmailPage;
