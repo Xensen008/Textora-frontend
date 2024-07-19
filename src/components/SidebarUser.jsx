@@ -51,6 +51,7 @@ function SidebarUser() {
               height={40}
               iconColor="#fff"
               imageUrl={user?.profile_pic}
+              userId={user?._id}
               name={user?.name}
             />
           </button>

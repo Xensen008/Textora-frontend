@@ -11,6 +11,7 @@ function UserCard({user, onclose}) {
             height={50}
             imageUrl={user?.profile_pic}
             name={user.name}
+            userId={user?._id}
             />
         </div>
         <div>

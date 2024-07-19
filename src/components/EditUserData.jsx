@@ -100,6 +100,7 @@ function EditUserData({ onClose, user }) {
                 iconColor="#fff"
                 imageUrl={data?.profile_pic}
                 name={data?.name}
+                userId={data?._id}
               />
               <label htmlFor="profile_pic">
                 <button type='button' className="font-semibold" onClick={handleOpenFile}>
