@@ -2,9 +2,10 @@ import React, { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import { logout, setUser } from "../stores/userSlice";
+import { logout, setUser , setOnlineUser } from "../stores/userSlice";
 import SidebarUser from "../components/SidebarUser";
 import logo from "../assets/Textora3.jpg";
+import io from 'socket.io-client'
 
 function Home() {
   const user = useSelector((state) => state.user);
@@ -12,6 +13,7 @@ function Home() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // console.log(user)
   const fetchUserDetails = async () => {
     try {
       const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/user-data`;
@@ -37,6 +39,23 @@ function Home() {
     fetchUserDetails();
   }, []);
 
+  // socket connection
+  useEffect(() => {
+    const socketUrl= import.meta.env.VITE_APP_BACKEND_URL
+    const socketConnection = io(socketUrl, {
+      auth : {
+        token : localStorage.getItem('token')
+      }
+    });
+    socketConnection.on('onlineUser',(data)=>{
+      console.log(data)
+      dispatch(setOnlineUser(data))
+    })
+    return () => {
+      socketConnection.disconnect();
+    };
+  }, []);
+  
   const basePath = location.pathname === "/";
   return (
     <div className="grid lg:grid-cols-[380px,1fr] h-screen max-h-screen">
