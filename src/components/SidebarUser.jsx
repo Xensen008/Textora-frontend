@@ -8,11 +8,13 @@ import { useSelector } from "react-redux";
 import EditUserData from "./EditUserData";
 import Divider from "./Divider";
 import { FiArrowUpLeft } from "react-icons/fi";
+import SearchUser from "./SearchUser";
 
 function SidebarUser() {
   const user = useSelector((state) => state?.user);
   const [editUserOpen, setEditUserOpen] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
+  const [openSearch, setOpenSearch] = useState(true);
 
   return (
     <div className="w-full h-full grid grid-cols-[48px,1fr]">
@@ -29,13 +31,13 @@ function SidebarUser() {
           >
             <IoChatbubbleEllipsesOutline size={25} />
           </NavLink>
-          <NavLink
-            to="/add-user"
+          <div
+            onClick={() => setOpenSearch(true)}
             className="w-12 h-12 flex justify-center items-center cursor-pointer mt-2 hover:bg-[#202c33] text-white rounded"
             title="Add User"
           >
             <FaUserPlus size={25} />
-          </NavLink>
+          </div>
         </div>
 
         <div className="flex flex-col items-center border-none">
@@ -94,6 +96,15 @@ function SidebarUser() {
             setEditUserOpen(false);
           }}
           user={user}
+        />
+      )}
+
+      {/* searching user */}
+      {openSearch && (
+        <SearchUser
+          onClose={() => {
+            setOpenSearch(false);
+          }}
         />
       )}
     </div>
