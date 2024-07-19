@@ -7,6 +7,7 @@ import Home from "../pages/Home"
 import MessPage from "../components/MessPage"
 import AuthLayout from "../layouts/AuthLayout"
 import ForgotPasswordPage from "../pages/ForgotPasswordPage"
+import MainHomeParents from "../pages/MainHomeParents"
 
 const router = createBrowserRouter([
     {
@@ -31,7 +32,7 @@ const router = createBrowserRouter([
             },
             {
                 path:"",
-                element:<Home/>,
+                element:<MainHomeParents/>,
                 children:[
                     {
                         path:':userId',

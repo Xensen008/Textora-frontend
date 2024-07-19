@@ -14,7 +14,7 @@ function SidebarUser() {
   const user = useSelector((state) => state?.user);
   const [editUserOpen, setEditUserOpen] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
-  const [openSearch, setOpenSearch] = useState(true);
+  const [openSearch, setOpenSearch] = useState(false);
 
   return (
     <div className="w-full h-full grid grid-cols-[48px,1fr]">

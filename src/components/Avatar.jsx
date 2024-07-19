@@ -16,7 +16,7 @@ function Avatar({userId, name, imageUrl, width, height, iconColor = 'currentColo
     return (
         <div style={{width : width+"px",height:height+"px"}} className={`text-slate-800 overflow-hidden rounded-full shadow-sm text-xl font-bold`}>
             {imageUrl ? (
-                <img src={imageUrl} alt={name} width={width} height={height} className='overflow-hidden rounded-full'/>
+                <img src={imageUrl} alt={name} width={width} height={height} className='overflow-hidden object-contain rounded-full'/>
             ) : (
                 name ? (
                     <div style={{width : width+"px",height:height+"px"}} className={`overflow-hidden rounded-full flex justify-center items-center ${bgColor[randomNum]}`}>
