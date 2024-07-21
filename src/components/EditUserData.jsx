@@ -41,7 +41,7 @@ function EditUserData({ onClose, user }) {
   const handleUploadPhoto = async (e) => {
     const file = e.target.files[0];
     const uploadPhoto= await uploadFile(file);
-    console.log(uploadPhoto);
+    // console.log(uploadPhoto);
     setData((prev) => {
         return {
             ...prev,
@@ -58,7 +58,7 @@ function EditUserData({ onClose, user }) {
       const response = await axios.post(url, data,{
         withCredentials: true,
       });
-      console.log(response)
+      // console.log(response)
       toast.success(response?.data?.message);
 
       if(response.data.success){

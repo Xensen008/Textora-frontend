@@ -58,7 +58,7 @@ function RegisterPage() {
     const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/register`;
     try {
       const response = await axios.post(url, data);
-      console.log("Registration successful", response.data);
+      // console.log("Registration successful", response.data);
       toast.success(response.data.message);
       if (response.data.success) {
         setData({

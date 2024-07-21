@@ -8,6 +8,9 @@ import { FaCirclePlus } from "react-icons/fa6";
 import { FaImage } from "react-icons/fa6";
 import { FaVideo } from "react-icons/fa6";
 import uploadFile from "../utils/uploadFile";
+import { IoClose } from "react-icons/io5";
+import { toast } from "react-hot-toast";
+import backgroundImage from '../assets/wallpaper2.jpg';
 
 function MessPage() {
   const { userId } = useParams();
@@ -23,36 +26,61 @@ function MessPage() {
     _id: "",
   });
   const [openImageVideoUpload, setOpenImageVideoUpload] = useState(false);
-  const [message, setMessage]= useState({
-    text:'',
-    videoUrl:"",
-    imageUrl:"",
-    
-  })
+  const [message, setMessage] = useState({
+    text: "",
+    videoUrl: "",
+    imageUrl: "",
+  });
 
-  const handleImageUpload = async(e)=>{
-    const file= e.target.files[0]
-    const uploadFile = await uploadFile(file)
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    toast.promise(uploadFile(file), {
+      loading: "Uploading image...",
+      success: (data) => {
+        setMessage((prev) => ({
+          ...prev,
+          imageUrl: data?.url,
+        }));
+        setOpenImageVideoUpload(false);
+        return "Image uploaded successfully!";
+      },
+      error: "Failed to upload image.",
+    });
+  };
 
-    setMessage(prev=>{
-      return{
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files[0];
+    toast.promise(uploadFile(file), {
+      loading: "Uploading video...",
+      success: (data) => {
+        setMessage((prev) => ({
+          ...prev,
+          videoUrl: data?.url,
+        }));
+        setOpenImageVideoUpload(false);
+        return "Video uploaded successfully!";
+      },
+      error: "Failed to upload video.",
+    });
+  };
+
+  const handleImageClosePreview = () => {
+    setMessage((prev) => {
+      return {
         ...prev,
-        imageUrl: uploadFile?.url
-      }
-    })
-
-  }
-  const handleVideoUpload = async(e)=>{
-    const file= e.target.files[0]
-    const uploadFile = await uploadFile(file)
-
-    setMessage(prev=>{
-      return{
+        imageUrl: "",
+      };
+    });
+  };
+  const handleVideoClosePreview = () => {
+    setMessage((prev) => {
+      return {
         ...prev,
-        videoUrl: uploadFile?.url
-      }
-    })
-  }
+        videoUrl: "",
+      };
+    });
+  };
+
   const handleOpenVideoImage = () => {
     setOpenImageVideoUpload((prev) => !prev);
   };
@@ -68,7 +96,7 @@ function MessPage() {
   }, [socketConnection, userId, user]);
 
   return (
-    <div className="h-12 bg-gray-100 rounded-lg">
+    <div className="bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${backgroundImage})` }}>
       <header className="sticky top-0  bg-[#d1d8cd]  rounded-b-lg">
         <div className="container mx-auto flex justify-between items-center p-2.5 rounded-lg">
           <div className="flex items-center gap-4 lg:ml-3">
@@ -90,9 +118,9 @@ function MessPage() {
               </h3>
               <p className="text-sm font-semibold">
                 {dataUser?.online ? (
-                  <span className="text-green-500">Online</span>
+                  <span className="text-green-600">Online</span>
                 ) : (
-                  <span className="text-gray-500">Offline</span>
+                  <span className="text-gray-800">Offline</span>
                 )}
               </p>
             </div>
@@ -105,8 +133,53 @@ function MessPage() {
 
       {/* show all message */}
       <section className="h-[calc(100vh-134px)] overflow-x-hidden overflow-y-scroll scrollbar">
-        Show All Message
+        {message?.imageUrl && (
+          <div className="w-full h-full bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
+            <div>
+              <button
+                onClick={handleImageClosePreview}
+                className="flex items-center fixed top-3 right-3 bg-slate-700 text-white p-2 rounded-full"
+              >
+                Close
+                <IoClose size={20} />
+              </button>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <img
+                src={message?.imageUrl}
+                alt="Preview"
+                className="aspect-square w-full h-full max-w-sm m-2 object-scale-down"
+              />
+            </div>
+          </div>
+        )}
+        {/* video section */}
+        {message?.videoUrl && (
+          <div className="w-full h-full bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
+            <div>
+              <button
+                onClick={handleVideoClosePreview}
+                className="flex items-center fixed top-3 right-3 bg-slate-700 text-white p-2 rounded-full"
+              >
+                Close
+                <IoClose size={20} />
+              </button>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <video
+                src={message?.videoUrl}
+                alt="Preview"
+                className="aspect-square w-full max-h-[600px] max-w-sm m-2 object-contain"
+                controls
+                muted
+                autoPlay
+              />
+            </div>
+          </div>
+        )}
+        message
       </section>
+
       <section className="h-16 bg-white flex items-center px-2">
         <div className="relative ">
           <button
@@ -137,8 +210,18 @@ function MessPage() {
                   <p>video</p>
                 </label>
 
-                <input type="file" id="image" onChange={handleImageUpload} className="hidden" />
-                <input type="file" id="video" onChange={handleVideoUpload} className="hidden" />
+                <input
+                  type="file"
+                  id="image"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <input
+                  type="file"
+                  id="video"
+                  onChange={handleVideoUpload}
+                  className="hidden"
+                />
               </form>
             </div>
           )}
