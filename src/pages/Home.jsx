@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import { logout, setUser , setOnlineUser } from "../stores/userSlice";
+import { logout, setUser , setOnlineUser, setSocketConnection } from "../stores/userSlice";
 import SidebarUser from "../components/SidebarUser";
 import logo from "../assets/Textora3.jpg";
 import io from 'socket.io-client'
@@ -21,10 +21,10 @@ function Home() {
         url: url,
         withCredentials: true,
       });
-
+      // console.log("response",response)
       dispatch(setUser(response.data.data));
 
-      if (response.data.logout) {
+      if (response?.data?.data?.logout) {
         dispatch(logout());
         navigate("/email");
       }
@@ -50,7 +50,9 @@ function Home() {
     socketConnection.on('onlineUser',(data)=>{
       // console.log(data)
       dispatch(setOnlineUser(data))
-    })
+    });
+
+    dispatch(setSocketConnection(socketConnection))
     return () => {
       socketConnection.disconnect();
     };

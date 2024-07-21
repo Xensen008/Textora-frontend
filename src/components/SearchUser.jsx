@@ -36,7 +36,7 @@ function SearchUser({ onClose }) {
   }, [searchUserInput]);
 
   return (
-    <div className="fixed top-0 bottom-0 right-0 left-0 bg-slate-700 bg-opacity-40 p-3">
+    <div className="fixed top-0 bottom-0 right-0 left-0 bg-slate-700 bg-opacity-40 p-3 z-10">
       <div className="w-full max-w-lg mx-auto mt-14 m-1">
         <div className="bg-[#fff] rounded h-14 flex overflow-hidden">
           <input
