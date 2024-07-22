@@ -110,7 +110,7 @@ function MessPage() {
       });
 
       socketConnection.on("message", (data) => {
-        console.log("message convo", data);
+        // console.log("message convo", data);
         setAllMessage(data);
       });
     }

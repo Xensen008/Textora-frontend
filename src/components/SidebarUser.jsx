@@ -22,6 +22,10 @@ function SidebarUser() {
   useEffect(() => {
     if(socketConnection){
       socketConnection.emit('sidebar',user?._id)
+
+      socketConnection.on('conversation',(data)=>{
+        console.log("conversation",data)
+      })
       }
   },[socketConnection,user])
 
