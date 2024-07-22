@@ -10,7 +10,7 @@ import { FaVideo } from "react-icons/fa6";
 import uploadFile from "../utils/uploadFile";
 import { IoClose } from "react-icons/io5";
 import { toast } from "react-hot-toast";
-import backgroundImage from "../assets/wallpaper4.jpg";
+import backgroundImage from "../assets/wallpaper.jpg";
 import { IoMdSend } from "react-icons/io";
 import moment from "moment";
 
@@ -155,7 +155,7 @@ function MessPage() {
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
         {/* Overlay with blur or transparency */}
-        <div className="absolute inset-0 bg-black bg-opacity-55 backdrop-blur-sm"></div>
+        {/* <div className="absolute inset-0 bg-[#222222] bg-opacity-30 backdrop-blur-sm"></div> */}
       </div>
       <div className="relative z-10">
         <header className="sticky top-0  bg-[#d1d8cd]  rounded-b-lg">
@@ -193,9 +193,69 @@ function MessPage() {
         </header>
 
         {/* show all message */}
+
         <section className="h-[calc(100vh-134px)] overflow-x-hidden overflow-y-scroll scrollbar">
+          <div className="flex flex-col gap-1 py-3 lg:mx-5 mx-2" ref={currentMessage}>
+            {allMessage.map((msg, index) => (
+              <div
+                key={index}
+                className={`flex ${
+                  user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className={`${
+                    msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
+                  } items-center gap-2 py-2 px-4 rounded-lg shadow-lg ${
+                    user?._id === msg.msgByUserId
+                      ? "bg-[#074d40] text-[#fdfcfc]"
+                      : "bg-[#323131] text-[#fffefe]"
+                  }`}
+                >
+                  {msg.imageUrl ? (
+                    <div className="md:w-22 aspect-square w-full h-full max-w-sm m-2 object-scale-down">
+                      <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={msg.imageUrl}
+                          className="w-[200px] object-scale-down h-[320px]"
+                          alt=""
+                        />
+                      </a>
+                      <p className="text-lg break-words mt-2">{msg.text}</p>
+                      <p className="text-xs mt-2 text-slate-300">
+                        {moment(msg.createdAt).format("hh:mm A")}
+                      </p>
+                    </div>
+                  ) : msg.videoUrl ? (
+                    <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
+                      <video
+                        controls
+                        className="w-[250px] h-auto m-0" 
+                        src={msg.videoUrl}
+                      >
+                      </video>
+                      <p className="text-lg break-words mt-2">{msg.text}</p>
+                      <p className="text-xs text-slate-300">
+                        {moment(msg.createdAt).format("hh:mm A")}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between w-full">
+                      <p className="text-lg break-words flex-grow">
+                        {msg.text}
+                      </p>
+                      <p className="text-xs ml-4 self-end text-slate-300">
+                        {moment(msg.createdAt).format("hh:mm A")}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
           {message?.imageUrl && (
-            <div className="w-full h-full bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
+            <div className="w-full h-full sticky bottom-0 bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
               <div>
                 <button
                   onClick={handleImageClosePreview}
@@ -216,7 +276,7 @@ function MessPage() {
           )}
           {/* video section */}
           {message?.videoUrl && (
-            <div className="w-full h-full bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
+            <div className="w-full h-full sticky bottom-0 bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
               <div>
                 <button
                   onClick={handleVideoClosePreview}
@@ -238,62 +298,37 @@ function MessPage() {
               </div>
             </div>
           )}
-          {/* All message */}
-          <div className="flex flex-col gap-2 py-2 mx-4" ref={currentMessage}>
-            {allMessage.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex ${
-                  user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[75%] p-3 rounded-lg border border-[#b5c0b0] ${
-                    user?._id === msg.msgByUserId
-                      ? "bg-[#324a5f] text-[#FFFFFF]" 
-                      : "bg-[#3a5f4a] text-[#FFFFFF]" 
-                  }`}
-                >
-                  <p className="text-lg break-words">{msg.text}</p>
-                  <p className="text-xs self-end">
-                    {moment(msg.createdAt).format("hh:mm A")}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
         </section>
 
-        <section className="h-16 bg-white flex items-center px-2">
+        <section className="h-16 bg-[#1a2326] flex items-center px-2">
           <div className="relative ">
             <button
               onClick={handleOpenVideoImage}
-              className="flex justify-center items-center w-10 h-10 rounded-full hover:bg-slate-300"
+              className="flex justify-center items-center w-10 h-10 rounded-full hover:bg-[#323131]"
             >
-              <FaCirclePlus size={20} />
+              <FaCirclePlus size={20} className="text-[#b5c0b0]" />
             </button>
             {openImageVideoUpload && (
-              <div className="bg-white shadow rounded absolute bottom-14 w-36 p-2 ">
+              <div className="bg-[#1a2326] shadow rounded absolute bottom-14 w-36 p-2 ">
                 <form>
                   <label
                     htmlFor="image"
-                    className="flex items-center p-2 gap-3  hover:bg-[#a4b1a1] cursor-pointer"
+                    className="flex items-center p-2 gap-3  hover:bg-[#323131] cursor-pointer"
                   >
-                    <div className="text-[#111b21]">
+                    <div className="text-[#b5c0b0]">
                       <FaImage size={18} />
                     </div>
-                    <p>Image</p>
+                    <p className="text-[#b5c0b0]">Image</p>
                   </label>
                   <label
                     htmlFor="video"
-                    className="flex items-center p-2 gap-3  hover:bg-[#a4b1a1] cursor-pointer"
+                    className="flex items-center p-2 gap-3  hover:bg-[#323131] cursor-pointer"
                   >
-                    <div className="text-[#111b21]">
+                    <div className="text-[#b5c0b0]">
                       <FaVideo size={18} />
                     </div>
-                    <p>video</p>
+                    <p className="text-[#b5c0b0]">Video</p>
                   </label>
-
                   <input
                     type="file"
                     id="image"
@@ -319,12 +354,12 @@ function MessPage() {
             <input
               type="text"
               placeholder="Type a Message..."
-              className="py-1 px-4 outline-none w-full h-full"
+              className="py-1 px-4 outline-none w-full h-full bg-[#131c21] text-[#FFFFFF] placeholder-[#B5C0B0] rounded-full"
               value={message?.text}
               onChange={handleOnChange}
             />
-            <button className="cursor-pointer hover:text-slate-800 ">
-              <IoMdSend size={25} />
+            <button className="cursor-pointer hover:text-[#B5C0B0]">
+              <IoMdSend size={25} className="text-[#b5c0b0]" />
             </button>
           </form>
         </section>

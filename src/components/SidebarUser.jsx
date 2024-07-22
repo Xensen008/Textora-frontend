@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { IoChatbubbleEllipsesOutline } from "react-icons/io5";
 import { FaUserPlus } from "react-icons/fa";
 import { NavLink } from "react-router-dom";
@@ -15,6 +15,16 @@ function SidebarUser() {
   const [editUserOpen, setEditUserOpen] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
   const [openSearch, setOpenSearch] = useState(false);
+  const socketConnection = useSelector(
+    (state) => state?.user?.socketConnection
+  );
+
+  useEffect(() => {
+    if(socketConnection){
+      socketConnection.emit('sidebar',user?._id)
+      }
+  },[socketConnection,user])
+
 
   return (
     <div className="w-full h-full grid grid-cols-[48px,1fr]">
