@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 import Avatar from "./Avatar";
@@ -10,8 +10,9 @@ import { FaVideo } from "react-icons/fa6";
 import uploadFile from "../utils/uploadFile";
 import { IoClose } from "react-icons/io5";
 import { toast } from "react-hot-toast";
-import backgroundImage from "../assets/wallpaper2.jpg";
-import {IoMdSend} from "react-icons/io"
+import backgroundImage from "../assets/wallpaper4.jpg";
+import { IoMdSend } from "react-icons/io";
+import moment from "moment";
 
 function MessPage() {
   const { userId } = useParams();
@@ -34,6 +35,18 @@ function MessPage() {
     videoUrl: "",
     imageUrl: "",
   });
+
+  const [allMessage, setAllMessage] = useState([]);
+  const currentMessage = useRef(null);
+
+  useEffect(() => {
+    if (currentMessage.current) {
+      currentMessage.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    }
+  }, [allMessage]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -96,8 +109,9 @@ function MessPage() {
         setDataUser(data);
       });
 
-      socketConnection.on("new message", (data) => {
-        console.log(data);
+      socketConnection.on("message", (data) => {
+        console.log("message convo", data);
+        setAllMessage(data);
       });
     }
   }, [socketConnection, userId, user]);
@@ -113,21 +127,26 @@ function MessPage() {
     });
   };
 
-  const handleSendMessage = (e)=>{
-    e.preventDefault()
-    if(message?.text || message?.imageUrl || message?.videoUrl){
-      if(socketConnection){
-        socketConnection.emit('new message',{
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (message?.text || message?.imageUrl || message?.videoUrl) {
+      if (socketConnection) {
+        socketConnection.emit("new message", {
           sender: user?._id,
           receiver: userId,
-          text:message?.text,
-          imageUrl:message?.imageUrl,
-          videoUrl:message?.videoUrl,
-          msgByUserId:user?._id
-        })
+          text: message?.text,
+          imageUrl: message?.imageUrl,
+          videoUrl: message?.videoUrl,
+          msgByUserId: user?._id,
+        });
       }
+      setMessage({
+        text: "",
+        videoUrl: "",
+        imageUrl: "",
+      });
     }
-  }
+  };
 
   return (
     <div className="relative">
@@ -136,7 +155,7 @@ function MessPage() {
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
         {/* Overlay with blur or transparency */}
-        <div className="absolute inset-0 bg-black bg-opacity-25 backdrop-blur-sm"></div>
+        <div className="absolute inset-0 bg-black bg-opacity-55 backdrop-blur-sm"></div>
       </div>
       <div className="relative z-10">
         <header className="sticky top-0  bg-[#d1d8cd]  rounded-b-lg">
@@ -219,7 +238,30 @@ function MessPage() {
               </div>
             </div>
           )}
-          message
+          {/* All message */}
+          <div className="flex flex-col gap-2 py-2 mx-4" ref={currentMessage}>
+            {allMessage.map((msg, index) => (
+              <div
+                key={index}
+                className={`flex ${
+                  user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className={`max-w-[75%] p-3 rounded-lg border border-[#b5c0b0] ${
+                    user?._id === msg.msgByUserId
+                      ? "bg-[#324a5f] text-[#FFFFFF]" 
+                      : "bg-[#3a5f4a] text-[#FFFFFF]" 
+                  }`}
+                >
+                  <p className="text-lg break-words">{msg.text}</p>
+                  <p className="text-xs self-end">
+                    {moment(msg.createdAt).format("hh:mm A")}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="h-16 bg-white flex items-center px-2">
@@ -270,7 +312,10 @@ function MessPage() {
           </div>
 
           {/* input for mess */}
-          <form className="h-full w-full flex gap-3" onSubmit={handleSendMessage}>
+          <form
+            className="h-full w-full flex gap-3"
+            onSubmit={handleSendMessage}
+          >
             <input
               type="text"
               placeholder="Type a Message..."
@@ -279,8 +324,7 @@ function MessPage() {
               onChange={handleOnChange}
             />
             <button className="cursor-pointer hover:text-slate-800 ">
-                <IoMdSend
-                size={25}/>
+              <IoMdSend size={25} />
             </button>
           </form>
         </section>
