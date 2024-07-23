@@ -59,7 +59,7 @@ function SidebarUser() {
       <div className="bg-[#111b21] w-16 h-full py-5 flex flex-col items-center justify-between">
         <div>
           <NavLink
-            to="/chat"
+            to="/"
             className={(isActive) =>
               `w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-[#202c33] rounded text-white ${
                 isActive && "bg-[#26333d]"
