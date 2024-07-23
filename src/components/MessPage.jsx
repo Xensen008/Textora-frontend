@@ -195,12 +195,12 @@ function MessPage() {
         {/* show all message */}
 
         <section className="h-[calc(100vh-134px)] overflow-x-hidden overflow-y-scroll scrollbar">
-          <div className="flex flex-col gap-1 py-3 lg:mx-5 mx-2" ref={currentMessage}>
+          <div className="flex flex-col gap-3 py-3 lg:mx-5 mx-2" ref={currentMessage}>
             {allMessage.map((msg, index) => (
               <div
                 key={index}
                 className={`flex ${
-                  user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
+                  user?._id === msg.msgByUserId ? "justify-end" : "justify-start "
                 }`}
               >
                 <div
@@ -221,7 +221,7 @@ function MessPage() {
                           alt=""
                         />
                       </a>
-                      <p className="text-lg break-words mt-1">{msg.text}</p>
+                      <p className="text-lg break-words mt-2">{msg.text}</p>
                       <p className="text-xs mt-2 text-slate-300">
                         {moment(msg.createdAt).format("hh:mm A")}
                       </p>

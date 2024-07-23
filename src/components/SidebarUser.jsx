@@ -127,23 +127,23 @@ function SidebarUser() {
                     />
                     <div className="flex-1">
                       <h3 className="font-semibold text-base truncate">
-                        {conv?.userDetails.name}
+                        {conv?.userDetails?.name}
                       </h3>
                       <div className="text-xs text-slate-300 flex items-center gap-1">
                         {conv?.lastMsg?.imageUrl && (
                           <div className="flex items-center">
                             <FaImage className="mr-1" />
-                            {!conv?.lastMsg.text && <span>Image</span>}
+                            {!conv?.lastMsg?.text && <span>Image</span>}
                           </div>
                         )}
                         {conv?.lastMsg?.videoUrl && (
                           <div className="flex items-center">
                             <FaVideo className="mr-1" />
-                            {!conv?.lastMsg.text && <span>Video</span>}
+                            {!conv?.lastMsg?.text && <span>Video</span>}
                           </div>
                         )}
                         <p className="text-sm text-slate-300 truncate">
-                          {conv?.lastMsg.text}
+                          {conv?.lastMsg?.text}
                         </p>
                       </div>
                     </div>
