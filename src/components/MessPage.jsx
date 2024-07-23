@@ -113,6 +113,8 @@ function MessPage() {
         console.log("message convo", data);
         setAllMessage(data);
       });
+
+      socketConnection.emit('seen', userId);
     }
   }, [socketConnection, userId, user]);
 
@@ -195,7 +197,7 @@ function MessPage() {
         {/* show all message */}
 
         <section className="h-[calc(100vh-134px)] overflow-x-hidden overflow-y-scroll scrollbar">
-          <div className="flex flex-col gap-3 py-3 lg:mx-5 mx-2" ref={currentMessage}>
+          <div className="flex flex-col gap-2 py-3 lg:mx-5 mx-2" ref={currentMessage}>
             {allMessage.map((msg, index) => (
               <div
                 key={index}
@@ -206,7 +208,7 @@ function MessPage() {
                 <div
                   className={`${
                     msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
-                  } items-center gap-2 py-2 px-4 rounded-lg shadow-lg ${
+                  } items-center gap-4 py-2 px-4 rounded-lg shadow-lg ${
                     user?._id === msg.msgByUserId
                       ? "bg-[#074d40] text-[#fdfcfc]"
                       : "bg-[#323131] text-[#fffefe]"

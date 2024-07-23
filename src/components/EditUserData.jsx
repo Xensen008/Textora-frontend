@@ -54,23 +54,26 @@ function EditUserData({ onClose, user }) {
   const handleOnSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        name: data.name,
+        profile_pic: data.profile_pic,
+      };
+  
       const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/update`;
-      const response = await axios.post(url, data,{
+      const response = await axios.post(url, payload, {
         withCredentials: true,
       });
-      // console.log(response)
+  
       toast.success(response?.data?.message);
-
-      if(response.data.success){
+      if (response.data.success) {
         dispatch(setUser(response.data.data));
         onClose();
       }
     } catch (error) {
-      console.log(error);    
+      console.log(error);
       toast.error(error?.response?.data.message);
     }
   };
-
   
   return (
     <div className="fixed top-0 bottom-0 right-0 left-0 bg-[#141c21] bg-opacity-40 flex justify-center items-center z-10">

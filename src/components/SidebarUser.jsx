@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { IoChatbubbleEllipsesOutline } from "react-icons/io5";
 import { FaUserPlus } from "react-icons/fa";
-import { NavLink, Link } from "react-router-dom";
+import { NavLink, Link, useNavigate } from "react-router-dom";
 import { BiLogOut } from "react-icons/bi";
 import Avatar from "./Avatar";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import EditUserData from "./EditUserData";
 import Divider from "./Divider";
 import { FiArrowUpLeft } from "react-icons/fi";
 import SearchUser from "./SearchUser";
 import { FaImage, FaVideo } from "react-icons/fa6";
+import { logout } from "../stores/userSlice";
 
 function SidebarUser() {
   const user = useSelector((state) => state?.user);
@@ -20,6 +21,15 @@ function SidebarUser() {
     (state) => state?.user?.socketConnection
   );
 
+  const dispatch = useDispatch();
+  const navigate = useNavigate()
+
+
+  const handleLogout = () => {
+      dispatch(logout());
+      navigate('/email')
+      localStorage.clear()
+  }
   useEffect(() => {
     if (socketConnection) {
       socketConnection.emit("sidebar", user._id);
@@ -86,6 +96,7 @@ function SidebarUser() {
           <button
             className="w-12 h-12 flex justify-center items-center cursor-pointer mt-2 hover:bg-[#202c33] text-red-600 rounded"
             title="Logout"
+            onClick={handleLogout}
           >
             <span className="-ml-2">
               <BiLogOut size={25} />
@@ -95,13 +106,13 @@ function SidebarUser() {
       </div>
 
       <div className="w-full bg-[#1e2c35] text-white">
-        <div className="flex h-16 items-center px-5 bg-[#202c33]">
+        <div className="flex h-16 items-center px-4 bg-[#202c33]">
           <h2 className="text-xl font-bold">Messages</h2>
         </div>
         <Divider />
 
         <div className="h-[calc(100vh-75px)] overflow-x-hidden overflow-y-auto scrollbar">
-          <div className="flex flex-col items-start gap-2 p-5">
+          <div className="flex flex-col items-start gap-2 p-4">
             {allUsers.length === 0 && (
               <div className="w-full flex flex-col items-center justify-center mt-6 text-slate-300">
                 <FiArrowUpLeft size={50} />
@@ -110,48 +121,69 @@ function SidebarUser() {
                 </p>
               </div>
             )}
-            <div className="w-full flex flex-col gap-2">
+            <div className="w-[279px] flex flex-col gap-2">
               {allUsers.map((conv) => (
                 <Link
                   to={`/${conv?.userDetails?._id}`}
                   key={conv?._id}
                   className="no-underline w-full"
                 >
-                  <div className={`flex items-center gap-2 p-3 rounded-lg transition-colors  hover:bg-[#1b252c] cursor-pointer`}>
+                  <div className="flex items-center gap-2 p-3 rounded-lg transition-colors hover:bg-[#1b252c] cursor-pointer">
                     <Avatar
                       imageUrl={conv?.userDetails?.profile_pic}
                       name={conv?.userDetails?.name}
-                      width={50}
-                      height={50}
+                      width={48}
+                      height={48}
                       userId={conv?.userDetails?._id}
                     />
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-base truncate">
-                        {conv?.userDetails?.name}
-                      </h3>
-                      <div className="text-xs text-slate-300 flex items-center gap-1">
-                        {conv?.lastMsg?.imageUrl && (
-                          <div className="flex items-center">
-                            <FaImage className="mr-1" />
-                            {!conv?.lastMsg?.text && <span>Image</span>}
-                          </div>
+                    <div className="flex-1 min-w-0 flex flex-col">
+                      <div className="flex justify-between items-center w-full">
+                        <h3 className="font-semibold text-base line-clamp-1 text-ellipsis mr-2">
+                          {conv?.userDetails?.name}
+                        </h3>
+                        <span
+                          className={`text-xs ${
+                            conv?.unseenMsg > 0
+                              ? "text-green-500"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {conv?.lastMsg?.createdAt &&
+                            new Date(
+                              conv.lastMsg.createdAt
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <div className="flex items-center gap-1 text-md text-slate-400 line-clamp-1 text-ellipsis max-w-[65%]">
+                          {conv?.lastMsg?.imageUrl && (
+                            <FaImage className="mr-1 flex-shrink-0" />
+                          )}
+                          {conv?.lastMsg?.videoUrl && (
+                            <FaVideo className="mr-1 flex-shrink-0" />
+                          )}
+                          <p className="text-ellipsis overflow-hidden whitespace-nowrap">
+                            {conv?.lastMsg?.text
+                              ? conv?.lastMsg?.text.length > 30
+                                ? conv?.lastMsg?.text.substring(0, 30) + "..."
+                                : conv?.lastMsg?.text
+                              : conv?.lastMsg?.imageUrl
+                              ? "Image"
+                              : conv?.lastMsg?.videoUrl
+                              ? "Video"
+                              : ""}
+                          </p>
+                        </div>
+                        {conv?.unseenMsg > 0 && (
+                          <span className="ml-2 bg-green-600 text-white text-xs min-w-[20px] h-5 font-semibold px-1 rounded-full flex justify-center items-center">
+                            {conv?.unseenMsg}
+                          </span>
                         )}
-                        {conv?.lastMsg?.videoUrl && (
-                          <div className="flex items-center">
-                            <FaVideo className="mr-1" />
-                            {!conv?.lastMsg?.text && <span>Video</span>}
-                          </div>
-                        )}
-                        <p className="text-sm text-slate-300 truncate">
-                          {conv?.lastMsg?.text}
-                        </p>
                       </div>
                     </div>
-                    {conv?.unseenMsg > 0 && (
-                      <span className="ml-auto bg-green-700 text-white text-xs w-6 h-6 font-semibold p-1 rounded-full flex justify-center items-center">
-                        {conv?.unseenMsg}
-                      </span>
-                    )}
                   </div>
                 </Link>
               ))}
