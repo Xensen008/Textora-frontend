@@ -63,7 +63,7 @@ function SearchUser({ onClose }) {
       <div>
         <button
           onClick={onClose}
-          className="flex items-center fixed top-3 right-3 bg-slate-700 text-white p-2 rounded-full"
+          className="flex items-center fixed top-3 right-3 bg-red-600 text-white p-2 rounded-full"
         >
           Close<IoClose size={20}/>
         </button>

@@ -104,13 +104,13 @@ function MessPage() {
   useEffect(() => {
     if (socketConnection) {
       socketConnection.emit("message-page", userId);
-
+  
       socketConnection.on("message-user", (data) => {
         setDataUser(data);
       });
-
+  
       socketConnection.on("message", (data) => {
-        // console.log("message convo", data);
+        console.log("message convo", data);
         setAllMessage(data);
       });
     }
@@ -134,9 +134,9 @@ function MessPage() {
         socketConnection.emit("new message", {
           sender: user?._id,
           receiver: userId,
-          text: message?.text,
-          imageUrl: message?.imageUrl,
-          videoUrl: message?.videoUrl,
+          text: message.text,
+          imageUrl: message.imageUrl,
+          videoUrl: message.videoUrl,
           msgByUserId: user?._id,
         });
       }
@@ -155,10 +155,10 @@ function MessPage() {
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
         {/* Overlay with blur or transparency */}
-        {/* <div className="absolute inset-0 bg-[#222222] bg-opacity-30 backdrop-blur-sm"></div> */}
+        <div className="absolute inset-0 bg-[#222222] bg-opacity-30 backdrop-blur-sm"></div>
       </div>
-      <div className="relative z-10">
-        <header className="sticky top-0  bg-[#d1d8cd]  rounded-b-lg">
+      <div className="relative">
+        <header className="sticky top-0  bg-[#202c33]  text-white ">
           <div className="container mx-auto flex justify-between items-center p-2.5 rounded-lg">
             <div className="flex items-center gap-4 lg:ml-3">
               {" "}
@@ -181,7 +181,7 @@ function MessPage() {
                   {dataUser?.online ? (
                     <span className="text-green-600">Online</span>
                   ) : (
-                    <span className="text-gray-800">Offline</span>
+                    <span className="text-gray-300">Offline</span>
                   )}
                 </p>
               </div>
@@ -213,15 +213,15 @@ function MessPage() {
                   }`}
                 >
                   {msg.imageUrl ? (
-                    <div className="md:w-22 aspect-square w-full h-full max-w-sm m-2 object-scale-down">
+                    <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
                       <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
                         <img
                           src={msg.imageUrl}
-                          className="w-[200px] object-scale-down h-[320px]"
+                          className=" object-cover h-[320px]"
                           alt=""
                         />
                       </a>
-                      <p className="text-lg break-words mt-2">{msg.text}</p>
+                      <p className="text-lg break-words mt-1">{msg.text}</p>
                       <p className="text-xs mt-2 text-slate-300">
                         {moment(msg.createdAt).format("hh:mm A")}
                       </p>
