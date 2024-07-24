@@ -41,11 +41,12 @@ function Home() {
 
   // socket connection
   useEffect(() => {
-    const socketUrl= import.meta.env.VITE_APP_BACKEND_URL
+    const socketUrl = import.meta.env.VITE_APP_BACKEND_URL.replace('http', 'ws');
+    console.log("socketUrl",socketUrl)
     const socketConnection = io(socketUrl, {
-      auth : {
-        token : localStorage.getItem('token')
-      }
+      auth: {
+        token: localStorage.getItem('token'),
+      },
     });
     socketConnection.on('onlineUser',(data)=>{
       console.log(data)
