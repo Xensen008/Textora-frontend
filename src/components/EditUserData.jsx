@@ -45,7 +45,7 @@ function EditUserData({ onClose, user }) {
     setData((prev) => {
         return {
             ...prev,
-            profile_pic: uploadPhoto?.url,
+            profile_pic: uploadPhoto?.secure_url,
         };
         });
   };

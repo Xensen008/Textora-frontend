@@ -24,7 +24,7 @@ function RegisterPage() {
       try {
         const resData = await uploadFile(file);
         setUploadPhoto(file);
-        setData({ ...data, profile_pic: resData.url });
+        setData({ ...data, profile_pic: resData.secure_url });
         toast.dismiss();
         toast.success("Upload successful!");
       } catch (error) {

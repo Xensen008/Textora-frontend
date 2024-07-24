@@ -55,7 +55,7 @@ function MessPage() {
       success: (data) => {
         setMessage((prev) => ({
           ...prev,
-          imageUrl: data?.url,
+          imageUrl: data?.secure_url,
         }));
         setOpenImageVideoUpload(false);
         return "Image uploaded successfully!";
@@ -71,7 +71,7 @@ function MessPage() {
       success: (data) => {
         setMessage((prev) => ({
           ...prev,
-          videoUrl: data?.url,
+          videoUrl: data?.secure_url,
         }));
         setOpenImageVideoUpload(false);
         return "Video uploaded successfully!";
