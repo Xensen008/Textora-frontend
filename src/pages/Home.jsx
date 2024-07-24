@@ -43,8 +43,9 @@ function Home() {
   useEffect(() => {
     const socketUrl= import.meta.env.VITE_APP_BACKEND_URL
     const socketConnection = io(socketUrl, {
-      auth : {
-        token : localStorage.getItem('token')
+      path: '/socket.io/',
+      auth: {
+        token: localStorage.getItem('token')
       }
     });
     socketConnection.on('onlineUser',(data)=>{
