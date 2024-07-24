@@ -41,23 +41,32 @@ function Home() {
 
   // socket connection
   useEffect(() => {
-    const socketUrl= import.meta.env.VITE_APP_BACKEND_URL
-    const socketConnection = io(socketUrl, {
-      path: '/socket.io/',
-      auth: {
-        token: localStorage.getItem('token')
-      }
-    });
-    socketConnection.on('onlineUser',(data)=>{
-      console.log(data)
-      dispatch(setOnlineUser(data))
-    });
+    const socketUrl = import.meta.env.VITE_APP_BACKEND_URL;
+    if (!socket) {
+      const newSocket = io(socketUrl, {
+        path: '/socket.io/',
+        auth: {
+          token: localStorage.getItem('token')
+        },
+        reconnectionAttempts: 5, // Attempt to reconnect 5 times
+        reconnectionDelay: 3000, // Wait 3 seconds before attempting to reconnect
+      });
 
-    dispatch(setSocketConnection(socketConnection))
+      newSocket.on('onlineUser', (data) => {
+        console.log(data);
+        dispatch(setOnlineUser(data));
+      });
+
+      dispatch(setSocketConnection(newSocket));
+      setSocket(newSocket);
+    }
+
     return () => {
-      socketConnection.disconnect();
+      if (socket) {
+        socket.disconnect();
+      }
     };
-  }, []);
+  }, [socket]);
   
   const basePath = location.pathname === "/";
   return (
