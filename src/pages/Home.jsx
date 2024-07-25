@@ -80,7 +80,7 @@ function Home() {
   const basePath = location.pathname === "/";
   return (
     <div className="grid lg:grid-cols-[380px,1fr] h-screen max-h-screen">
-      <section className={`bg-[#d1d8cd] ${!basePath && "hidden"} lg:block`}>
+      <section className={`bg-[#d1d8cd] h-full ${!basePath && "hidden"} lg:block`}>
         <SidebarUser />
       </section>
       {/* Message component  */}
