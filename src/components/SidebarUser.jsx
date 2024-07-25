@@ -55,8 +55,8 @@ function SidebarUser() {
   }, [socketConnection, user]);
 
   return (
-    <div className="w-full h-full flex">
-      <div className="bg-[#111b21] w-16 h-full py-5 flex flex-col items-center justify-between">
+    <div className="w-full sm:h-[90vh] h-screen flex">
+      <div className="bg-[#111b21] w-16 sm:h-[90vh] h-screen py-5 flex flex-col items-center justify-between">
         <div>
           <NavLink
             to="/"
@@ -111,7 +111,7 @@ function SidebarUser() {
         </div>
         <Divider />
 
-        <div className="sm:h-[calc(100vh-75px)] h-full overflow-x-hidden overflow-y-auto scrollbar">
+        <div className="h-[calc(100vh-75px)] overflow-x-hidden overflow-y-auto scrollbar">
           <div className="flex flex-col items-start gap-2 p-4">
             {allUsers.length === 0 && (
               <div className="w-full flex flex-col items-center justify-center mt-6 text-slate-300">
