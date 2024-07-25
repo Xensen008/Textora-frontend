@@ -104,16 +104,16 @@ function MessPage() {
   useEffect(() => {
     if (socketConnection) {
       socketConnection.emit("message-page", userId);
-
+  
       socketConnection.on("message-user", (data) => {
         setDataUser(data);
       });
-
+  
       socketConnection.on("message", (data) => {
         console.log("message convo", data);
-        if (data && data.length > 0 && (data[0].sender === userId || data[0].receiver === userId)) {
-          setAllMessage(data);
-        }
+        setAllMessage(data);
+        // if (data?.sender === userId || data?.receiver === userId) {
+        // }
       });
 
       socketConnection.emit('seen', userId);
@@ -158,12 +158,15 @@ function MessPage() {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
+        {/* Overlay with blur or transparency */}
         <div className="absolute inset-0 bg-[#222222] bg-opacity-30 backdrop-blur-sm"></div>
       </div>
       <div className="relative">
-        <header className="sticky top-0 bg-[#202c33] text-white ">
+        <header className="sticky top-0  bg-[#202c33]  text-white ">
           <div className="container mx-auto flex justify-between items-center p-2.5 rounded-lg">
             <div className="flex items-center gap-4 lg:ml-3">
+              {" "}
+              {/* Adjusted margin here */}
               <Link className="lg:hidden" to={"/"}>
                 <FaAngleLeft size={25} />
               </Link>
@@ -193,6 +196,8 @@ function MessPage() {
           </div>
         </header>
 
+        {/* show all message */}
+
         <section className="h-[calc(100vh-134px)] overflow-x-hidden overflow-y-scroll scrollbar">
           <div className="flex flex-col gap-2 py-3 lg:mx-5 mx-2" ref={currentMessage}>
             {allMessage.map((msg, index) => (
@@ -216,7 +221,7 @@ function MessPage() {
                       <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
                         <img
                           src={msg.imageUrl}
-                          className="object-cover h-[320px]"
+                          className=" object-cover h-[320px]"
                           alt=""
                         />
                       </a>
@@ -229,7 +234,7 @@ function MessPage() {
                     <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
                       <video
                         controls
-                        className="w-[250px] h-auto m-0"
+                        className="w-[250px] h-auto m-0" 
                         src={msg.videoUrl}
                       >
                       </video>
@@ -254,86 +259,114 @@ function MessPage() {
           </div>
 
           {message?.imageUrl && (
-            <div className="w-full h-full sticky bottom-0 bg-slate-800 bg-opacity-30 px-1 py-1 text-white">
-              <div className="relative w-32 aspect-square rounded-md">
-                <img
-                  src={message.imageUrl}
-                  alt="uploaded"
-                  className="w-full h-full object-cover rounded-md"
-                />
-                <span
+            <div className="w-full h-full sticky bottom-0 bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
+              <div>
+                <button
                   onClick={handleImageClosePreview}
-                  className="absolute top-0 right-0 bg-red-600 text-white p-1 rounded-md cursor-pointer"
+                  className="flex items-center fixed top-3 right-3 bg-slate-700 text-white p-2 rounded-full"
                 >
+                  Close
                   <IoClose size={20} />
-                </span>
+                </button>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <img
+                  src={message?.imageUrl}
+                  alt="Preview"
+                  className="aspect-square w-full h-full max-w-sm m-2 object-scale-down"
+                />
               </div>
             </div>
           )}
+          {/* video section */}
           {message?.videoUrl && (
-            <div className="w-full h-full sticky bottom-0 bg-slate-800 bg-opacity-30 px-1 py-1 text-white">
-              <div className="relative w-32 h-32 rounded-md">
-                <video
-                  src={message.videoUrl}
-                  className="w-full h-full object-cover rounded-md"
-                />
-                <span
+            <div className="w-full h-full sticky bottom-0 bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
+              <div>
+                <button
                   onClick={handleVideoClosePreview}
-                  className="absolute top-0 right-0 bg-red-600 text-white p-1 rounded-md cursor-pointer"
+                  className="flex items-center fixed top-3 right-3 bg-slate-700 text-white p-2 rounded-full"
                 >
+                  Close
                   <IoClose size={20} />
-                </span>
+                </button>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <video
+                  src={message?.videoUrl}
+                  alt="Preview"
+                  className="aspect-square w-full max-h-[600px] max-w-sm m-2 object-contain"
+                  controls
+                  muted
+                  autoPlay
+                />
               </div>
             </div>
           )}
         </section>
 
-        <footer className="sticky bottom-0 w-full bg-[#202c33] text-white py-3">
-          <div className="container mx-auto flex justify-center items-center gap-4 px-2">
-            <div className="relative">
-              <FaCirclePlus
-                className="text-2xl text-slate-500"
-                onClick={handleOpenVideoImage}
-              />
-              {openImageVideoUpload && (
-                <div className="absolute top-8 right-0 bg-slate-800 bg-opacity-40 p-3 rounded-md flex flex-col gap-4">
-                  <label className="cursor-pointer">
-                    <FaImage className="text-2xl" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageUpload}
-                    />
+        <section className="h-16 bg-[#1a2326] flex items-center px-2">
+          <div className="relative ">
+            <button
+              onClick={handleOpenVideoImage}
+              className="flex justify-center items-center w-10 h-10 rounded-full hover:bg-[#323131]"
+            >
+              <FaCirclePlus size={20} className="text-[#b5c0b0]" />
+            </button>
+            {openImageVideoUpload && (
+              <div className="bg-[#1a2326] shadow rounded absolute bottom-14 w-36 p-2 ">
+                <form>
+                  <label
+                    htmlFor="image"
+                    className="flex items-center p-2 gap-3  hover:bg-[#323131] cursor-pointer"
+                  >
+                    <div className="text-[#b5c0b0]">
+                      <FaImage size={18} />
+                    </div>
+                    <p className="text-[#b5c0b0]">Image</p>
                   </label>
-                  <label className="cursor-pointer">
-                    <FaVideo className="text-2xl" />
-                    <input
-                      type="file"
-                      accept="video/*"
-                      className="hidden"
-                      onChange={handleVideoUpload}
-                    />
+                  <label
+                    htmlFor="video"
+                    className="flex items-center p-2 gap-3  hover:bg-[#323131] cursor-pointer"
+                  >
+                    <div className="text-[#b5c0b0]">
+                      <FaVideo size={18} />
+                    </div>
+                    <p className="text-[#b5c0b0]">Video</p>
                   </label>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleSendMessage} className="flex-grow flex gap-2">
-              <input
-                type="text"
-                className="flex-grow bg-[#2b3942] py-2 px-4 rounded-md outline-none text-white"
-                placeholder="Type a message..."
-                name="text"
-                value={message.text}
-                onChange={handleOnChange}
-              />
-              <button type="submit">
-                <IoMdSend className="text-2xl text-slate-500" />
-              </button>
-            </form>
+                  <input
+                    type="file"
+                    id="image"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <input
+                    type="file"
+                    id="video"
+                    onChange={handleVideoUpload}
+                    className="hidden"
+                  />
+                </form>
+              </div>
+            )}
           </div>
-        </footer>
+
+          {/* input for mess */}
+          <form
+            className="h-full w-full flex gap-3"
+            onSubmit={handleSendMessage}
+          >
+            <input
+              type="text"
+              placeholder="Type a Message..."
+              className="py-1 px-4 outline-none w-full h-full bg-[#131c21] text-[#FFFFFF] placeholder-[#B5C0B0] rounded-full"
+              value={message?.text}
+              onChange={handleOnChange}
+            />
+            <button className="cursor-pointer hover:text-[#B5C0B0]">
+              <IoMdSend size={25} className="text-[#b5c0b0]" />
+            </button>
+          </form>
+        </section>
       </div>
     </div>
   );
