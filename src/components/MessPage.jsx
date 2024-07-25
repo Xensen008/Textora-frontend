@@ -111,7 +111,9 @@ function MessPage() {
   
       socketConnection.on("message", (data) => {
         console.log("message convo", data);
-        setAllMessage(data);
+        if (data.sender === userId || data.receiver === userId) {
+          setAllMessage(data);
+        }
       });
 
       socketConnection.emit('seen', userId);
