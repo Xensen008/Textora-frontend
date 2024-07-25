@@ -111,7 +111,7 @@ function SidebarUser() {
         </div>
         <Divider />
 
-        <div className="h-[calc(100vh-75px)] overflow-x-hidden overflow-y-auto scrollbar">
+        <div className="lg:h-[calc(100vh-75px)] h-full overflow-x-hidden overflow-y-auto scrollbar">
           <div className="flex flex-col items-start gap-2 p-4">
             {allUsers.length === 0 && (
               <div className="w-full flex flex-col items-center justify-center mt-6 text-slate-300">
