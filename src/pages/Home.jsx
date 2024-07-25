@@ -2,10 +2,15 @@ import React, { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import { logout, setUser, setOnlineUser, setSocketConnection } from "../stores/userSlice";
+import {
+  logout,
+  setUser,
+  setOnlineUser,
+  setSocketConnection,
+} from "../stores/userSlice";
 import SidebarUser from "../components/SidebarUser";
 import logo from "../assets/Textora3.jpg";
-import io from 'socket.io-client';
+import io from "socket.io-client";
 
 function Home() {
   const user = useSelector((state) => state.user);
@@ -36,10 +41,13 @@ function Home() {
 
   // socket connection
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_APP_BACKEND_URL.replace(/^http/, 'ws');
-    const token = localStorage.getItem('token');
+    const socketUrl = import.meta.env.VITE_APP_BACKEND_URL.replace(
+      /^http/,
+      "ws"
+    );
+    const token = localStorage.getItem("token");
     if (!token) {
-      console.error('Token not found');
+      console.error("Token not found");
       return;
     }
 
@@ -47,14 +55,18 @@ function Home() {
       auth: {
         token: token,
       },
-      transports: ['websocket'], // Ensure only websocket transport is used
+      transports: ["websocket"], // Ensure only websocket transport is used
     });
 
-    socketConnection.on('connect_error', (err) => {
-      console.error('Socket connection error:', err);
+    socketConnection.on("disconnect", (reason) => {
+      console.error("disconnected :", reason);
+
+      if (reason === "io server disconnect") {
+        socketConnection.connect();
+      }
     });
 
-    socketConnection.on('onlineUser', (data) => {
+    socketConnection.on("onlineUser", (data) => {
       console.log(data);
       dispatch(setOnlineUser(data));
     });
@@ -76,13 +88,13 @@ function Home() {
         <Outlet />
       </section>
 
-      <div className={`justify-center items-center flex-col hidden ${!basePath ? "hidden" : "lg:flex"}`}>
+      <div
+        className={`justify-center items-center flex-col hidden ${
+          !basePath ? "hidden" : "lg:flex"
+        }`}
+      >
         <div className="blend">
-          <img
-            src={logo}
-            alt="lgo"
-            width={350}
-          />
+          <img src={logo} alt="lgo" width={350} />
         </div>
         <p className="font-bold text-xl ">Select User To Start Chatting</p>
       </div>
