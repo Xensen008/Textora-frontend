@@ -55,8 +55,8 @@ function SidebarUser() {
   }, [socketConnection, user]);
 
   return (
-    <div className="w-full sm:h-[90vh] h-screen flex">
-      <div className="bg-[#111b21] w-16 sm:h-[90vh] h-screen py-5 flex flex-col items-center justify-between">
+    <div className="w-full h-screen flex">
+      <div className="bg-[#111b21] w-16 h-full py-5 flex flex-col items-center justify-between">
         <div>
           <NavLink
             to="/"
