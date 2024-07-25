@@ -64,7 +64,6 @@ function MessPage() {
     });
   };
 
-  //handleVideoUpload
   const handleVideoUpload = async (e) => {
     const file = e.target.files[0];
     toast.promise(uploadFile(file), {
@@ -113,8 +112,6 @@ function MessPage() {
       socketConnection.on("message", (data) => {
         console.log("message convo", data);
         setAllMessage(data);
-        // if (data?.sender === userId || data?.receiver === userId) {
-        // }
       });
 
       socketConnection.emit('seen', userId);
