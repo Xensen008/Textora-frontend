@@ -97,7 +97,7 @@ function RegisterPage() {
             <input
               type="text"
               name="name"
-              placeholder="Full Name"
+              placeholder="Full Name*"
               onChange={handleOnChange}
               value={data.name}
               className="input py-2 text-base" // Increased padding and base text size
@@ -106,7 +106,7 @@ function RegisterPage() {
             <input
               type="email"
               name="email"
-              placeholder="Email Address"
+              placeholder="Email Address*"
               onChange={handleOnChange}
               value={data.email}
               className="input py-2 text-base" // Increased padding and base text size
@@ -115,7 +115,7 @@ function RegisterPage() {
             <input
               type="password"
               name="password"
-              placeholder="Password"
+              placeholder="Password*"
               onChange={handleOnChange}
               value={data.password}
               className="input py-2 text-base" // Increased padding and base text size
@@ -130,8 +130,8 @@ function RegisterPage() {
                 {isUploading ? (
                   <span>Uploading...</span>
                 ) : (
-                  <span className="text-sm">
-                    {data.profile_pic ? "File selected" : "Choose file"}
+                  <span className="text-md">
+                    {data.profile_pic ? "File selected" : "Choose file (optional)"}
                   </span>
                 )}
               </label>
@@ -139,6 +139,7 @@ function RegisterPage() {
                 <IoClose
                   className="text-red-500 cursor-pointer"
                   onClick={handleClear}
+                  size={25}
                 />
               )}
               <input
@@ -154,6 +155,7 @@ function RegisterPage() {
             type="submit"
             className="w-full py-2 mt-4 rounded-full"
             style={{ backgroundColor: "#0a3822", color: "#fff" }}
+            disabled={isUploading}
           >
             Register
           </button>

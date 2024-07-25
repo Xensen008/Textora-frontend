@@ -84,7 +84,7 @@ function Home() {
         <SidebarUser />
       </section>
       {/* Message component  */}
-      <section className={`${basePath && "hidden"}`}>
+      <section className={`${basePath && "hidden"} lg:h-screen sm:h-[calc(100vh-60px)]`}>
         <Outlet />
       </section>
 
@@ -94,9 +94,9 @@ function Home() {
         }`}
       >
         <div className="blend">
-          <img src={logo} alt="lgo" width={350} />
+          <img src={logo} alt="logo" width={350} />
         </div>
-        <p className="font-bold text-xl ">Select User To Start Chatting</p>
+        <p className="font-bold text-xl">Select User To Start Chatting</p>
       </div>
     </div>
   );

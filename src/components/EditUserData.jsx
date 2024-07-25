@@ -7,14 +7,16 @@ import axios from "axios";
 import { useDispatch } from "react-redux";
 import { setUser } from "../stores/userSlice";
 
+
 function EditUserData({ onClose, user }) {
   const [data, setData] = useState({
-    name: user?.user || '',
-    profile_pic: user?.profile_pic || '',
+    name: user?.user || "",
+    profile_pic: user?.profile_pic || "",
   });
 
   const uploadPhotoRef = useRef();
   const dispatch = useDispatch();
+  const [isUploading, setIsUploading] = useState(false); 
 
   useEffect(() => {
     setData((prev) => {
@@ -40,16 +42,29 @@ function EditUserData({ onClose, user }) {
 
   const handleUploadPhoto = async (e) => {
     const file = e.target.files[0];
-    const uploadPhoto= await uploadFile(file);
-    // console.log(uploadPhoto);
-    setData((prev) => {
-        return {
-            ...prev,
-            profile_pic: uploadPhoto?.secure_url,
-        };
-        });
+    setIsUploading(true); 
+    toast
+      .promise(
+        uploadFile(file), 
+        {
+          loading: "Uploading...", 
+          success: (data) => `Upload successful!`, 
+          error: (err) => `Upload failed: ${err.message}`, 
+        }
+      )
+      .then((uploadPhoto) => {
+        setData((prev) => ({
+          ...prev,
+          profile_pic: uploadPhoto?.secure_url,
+        }));
+      })
+      .catch((error) => {
+        console.error("Upload error:", error);
+      })
+      .finally(() => {
+        setIsUploading(false);
+      });
   };
-
 
   const handleOnSubmit = async (e) => {
     e.preventDefault();
@@ -58,12 +73,12 @@ function EditUserData({ onClose, user }) {
         name: data.name,
         profile_pic: data.profile_pic,
       };
-  
+
       const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/update`;
       const response = await axios.post(url, payload, {
         withCredentials: true,
       });
-  
+
       toast.success(response?.data?.message);
       if (response.data.success) {
         dispatch(setUser(response.data.data));
@@ -74,7 +89,7 @@ function EditUserData({ onClose, user }) {
       toast.error(error?.response?.data.message);
     }
   };
-  
+
   return (
     <div className="fixed top-0 bottom-0 right-0 left-0 bg-[#141c21] bg-opacity-40 flex justify-center items-center z-10">
       <div className="bg-white p-4 py-6 m-1 rounded w-full max-w-sm">
@@ -106,7 +121,11 @@ function EditUserData({ onClose, user }) {
                 userId={data?._id}
               />
               <label htmlFor="profile_pic">
-                <button type='button' className="font-semibold" onClick={handleOpenFile}>
+                <button
+                  type="button"
+                  className="font-semibold"
+                  onClick={handleOpenFile}
+                >
                   Change Photo
                 </button>
                 <input
@@ -130,6 +149,7 @@ function EditUserData({ onClose, user }) {
             <button
               onClick={handleOnSubmit}
               className="bg-[#111b21] text-white py-2 px-4 border rounded"
+              disabled={isUploading}
             >
               Save
             </button>
