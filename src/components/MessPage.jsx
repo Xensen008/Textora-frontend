@@ -104,22 +104,19 @@ function MessPage() {
   useEffect(() => {
     if (socketConnection) {
       socketConnection.emit("message-page", userId);
-
+  
       socketConnection.on("message-user", (data) => {
         setDataUser(data);
       });
-
-      socketConnection.on("message", ({ conversationId, messages }) => {
-        if (conversationId === userId) {
-          if (Array.isArray(messages)) {
-            setAllMessage(messages);
-          } else {
-            console.error("Received messages is not an array:", messages);
-          }
-        }
+  
+      socketConnection.on("message", (data) => {
+        console.log("message convo", data);
+        setAllMessage(data);
+        // if (data?.sender === userId || data?.receiver === userId) {
+        // }
       });
 
-      socketConnection.emit("seen", userId);
+      socketConnection.emit('seen', userId);
     }
   }, [socketConnection, userId, user]);
 
@@ -202,17 +199,12 @@ function MessPage() {
         {/* show all message */}
 
         <section className="h-[calc(100vh-134px)] overflow-x-hidden overflow-y-scroll scrollbar">
-          <div
-            className="flex flex-col gap-2 py-3 lg:mx-5 mx-2"
-            ref={currentMessage}
-          >
+          <div className="flex flex-col gap-2 py-3 lg:mx-5 mx-2" ref={currentMessage}>
             {allMessage.map((msg, index) => (
               <div
                 key={index}
                 className={`flex ${
-                  user?._id === msg.msgByUserId
-                    ? "justify-end"
-                    : "justify-start "
+                  user?._id === msg.msgByUserId ? "justify-end" : "justify-start "
                 }`}
               >
                 <div
@@ -226,11 +218,7 @@ function MessPage() {
                 >
                   {msg.imageUrl ? (
                     <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
-                      <a
-                        href={msg.imageUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                      <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
                         <img
                           src={msg.imageUrl}
                           className=" object-cover h-[320px]"
@@ -246,9 +234,10 @@ function MessPage() {
                     <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
                       <video
                         controls
-                        className="w-[250px] h-auto m-0"
+                        className="w-[250px] h-auto m-0" 
                         src={msg.videoUrl}
-                      ></video>
+                      >
+                      </video>
                       <p className="text-lg break-words mt-2">{msg.text}</p>
                       <p className="text-xs text-slate-300">
                         {moment(msg.createdAt).format("hh:mm A")}
