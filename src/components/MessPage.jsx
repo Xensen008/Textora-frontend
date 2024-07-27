@@ -108,7 +108,7 @@ function MessPage() {
       socketConnection.on("message-user", (data) => {
         setDataUser(data);
       });
-  
+      // message event 
       socketConnection.on("message", (data) => {
         console.log("message convo", data);
         setAllMessage(data);
