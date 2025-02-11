@@ -109,6 +109,9 @@ function MessPage() {
       socketConnection.off("message");
       socketConnection.off("error");
       
+      // Emit leave event for previous conversation
+      socketConnection.emit("leave-conversation");
+      
       // Request messages for this user
       socketConnection.emit("message-page", userId);
   
@@ -125,16 +128,16 @@ function MessPage() {
       socketConnection.on("message", (data) => {
         console.log("Received message data:", data);
         if (data && Array.isArray(data.messages)) {
-          // Only update messages if they belong to the current conversation
-          if (data.conversationId === currentConversation || 
-              !currentConversation || 
-              (data.participants && 
-               (data.participants.sender === userId || data.participants.receiver === userId))) {
+          // Only update messages if they belong to the current user's conversation
+          if (data.participants && 
+              (data.participants.sender === userId || data.participants.receiver === userId) &&
+              data.conversationId === currentConversation) {
+            setAllMessage(data.messages);
+          } else if (!currentConversation) {
+            // If no conversation is set yet, set the first one
             setAllMessage(data.messages);
             setCurrentConversation(data.conversationId);
           }
-        } else {
-          console.warn("Received invalid message data:", data);
         }
       });
 
@@ -143,19 +146,29 @@ function MessPage() {
         console.error("Socket error:", error);
         toast.error(error);
       });
-
-      // Mark messages as seen
-      socketConnection.emit('seen', userId);
     }
 
     return () => {
       if (socketConnection) {
+        socketConnection.emit("leave-conversation");
         socketConnection.off("message-user");
         socketConnection.off("message");
         socketConnection.off("error");
       }
     };
-  }, [socketConnection, userId, user, currentConversation]);
+  }, [socketConnection, userId, currentConversation]);
+
+  // Add a new effect to handle conversation switching
+  useEffect(() => {
+    if (socketConnection && userId) {
+      // Clear current conversation when switching users
+      setCurrentConversation(null);
+      setAllMessage([]);
+      
+      // Request messages for the new user
+      socketConnection.emit("message-page", userId);
+    }
+  }, [userId, socketConnection]);
 
   const handleOnChange = (e) => {
     const { name, value } = e.target;
