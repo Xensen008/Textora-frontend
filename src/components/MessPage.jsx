@@ -17,6 +17,7 @@ import moment from "moment";
 function MessPage() {
   const { userId } = useParams();
   const user = useSelector((state) => state?.user);
+  const onlineUsers = useSelector((state) => state?.user?.onlineUser || []);
   const socketConnection = useSelector(
     (state) => state?.user?.socketConnection
   );
@@ -24,7 +25,6 @@ function MessPage() {
     name: "",
     email: "",
     profile_pic: "",
-    online: false,
     _id: "",
   });
 
@@ -247,7 +247,7 @@ function MessPage() {
                   {dataUser?.name}
                 </h3>
                 <p className="text-sm font-semibold">
-                  {dataUser?.online ? (
+                  {Array.isArray(onlineUsers) && onlineUsers.includes(dataUser?._id) ? (
                     <span className="text-green-600">Online</span>
                   ) : (
                     <span className="text-gray-300">Offline</span>
