@@ -13,6 +13,7 @@ import logo from "../assets/Textora3.jpg";
 import io from "socket.io-client";
 import { toast } from "react-hot-toast";
 import MessPage from "../components/MessPage";
+import store from "../stores/store";
 
 function Home() {
   const user = useSelector((state) => state.user);
@@ -108,8 +109,9 @@ function Home() {
           dispatch(setSocketConnection(socket));
           retryCount = 0;
           
-          // Request initial conversations after successful connection
+          // Request initial conversations and online users after successful connection
           socket.emit("get-conversations");
+          socket.emit("get-online-users");
         });
 
         socket.on("connect_error", (error) => {
@@ -143,8 +145,27 @@ function Home() {
         });
 
         socket.on("onlineUser", (data) => {
-          console.log("Online users:", data);
-          dispatch(setOnlineUser(data));
+          console.log("Online users updated:", data);
+          if (Array.isArray(data)) {
+            dispatch(setOnlineUser(data));
+          }
+        });
+
+        // Add handler for user status changes
+        socket.on("user_status_change", ({ userId, status }) => {
+          console.log("User status changed:", userId, status);
+          const currentOnlineUsers = store.getState().user.onlineUser || [];
+          let updatedOnlineUsers;
+          
+          if (status === 'online' && !currentOnlineUsers.includes(userId)) {
+            updatedOnlineUsers = [...currentOnlineUsers, userId];
+          } else if (status === 'offline') {
+            updatedOnlineUsers = currentOnlineUsers.filter(id => id !== userId);
+          } else {
+            updatedOnlineUsers = currentOnlineUsers;
+          }
+          
+          dispatch(setOnlineUser(updatedOnlineUsers));
         });
 
         socket.on("error", (error) => {

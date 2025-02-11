@@ -8,8 +8,15 @@ const store = configureStore({
     middleware: (getDefaultMiddleware) => 
         getDefaultMiddleware({
             serializableCheck: {
-                ignoredActions: ['user/setSocketConnection'],
-                ignoredPaths: ['user.socketConnection'],
+                // Ignore socket connection and specific actions
+                ignoredActions: [
+                    'user/setSocketConnection',
+                    'user/setOnlineUser'
+                ],
+                // Ignore socket in state
+                ignoredPaths: [
+                    'user.socketConnection'
+                ],
             },
         }),
 });
