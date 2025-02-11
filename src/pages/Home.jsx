@@ -20,11 +20,28 @@ function Home() {
 
   const fetchUserDetails = async () => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.log("No token found, redirecting to login");
+        navigate("/email");
+        return;
+      }
+
       const url = `${import.meta.env.VITE_APP_BACKEND_URL}/api/user-data`;
       const response = await axios.get(url, {
         withCredentials: true,
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
-      dispatch(setUser(response.data.data));
+      
+      if (response?.data?.data) {
+        dispatch(setUser(response.data.data));
+      } else {
+        console.log("No user data received");
+        dispatch(logout());
+        navigate("/email");
+      }
 
       if (response?.data?.data?.logout) {
         dispatch(logout());
@@ -32,6 +49,8 @@ function Home() {
       }
     } catch (error) {
       console.error("error:", error);
+      dispatch(logout());
+      navigate("/email");
     }
   };
 
@@ -41,21 +60,27 @@ function Home() {
 
   // socket connection
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_APP_BACKEND_URL.replace(
-      /^http/,
-      "ws"
-    );
     const token = localStorage.getItem("token");
     if (!token) {
-      console.error("Token not found");
+      console.log("No token found for socket connection");
+      navigate("/email");
       return;
     }
 
-    const socketConnection = io(socketUrl, {
+    const socketUrl = import.meta.env.VITE_APP_BACKEND_URL;
+    if (!socketUrl) {
+      console.error("Backend URL not configured");
+      return;
+    }
+
+    const wsUrl = socketUrl.replace(/^http/, "ws");
+    
+    const socketConnection = io(wsUrl, {
       auth: {
         token: token,
       },
-      transports: ["websocket"], // Ensure only websocket transport is used
+      transports: ["websocket"],
+      withCredentials: true
     });
 
     socketConnection.on("disconnect", (reason) => {
@@ -75,7 +100,7 @@ function Home() {
     return () => {
       socketConnection.disconnect();
     };
-  }, [dispatch]);
+  }, [dispatch, navigate]);
 
   const basePath = location.pathname === "/";
   return (
