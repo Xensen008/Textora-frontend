@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { IoChatbubbleEllipsesOutline } from "react-icons/io5";
 import { FaUserPlus } from "react-icons/fa";
-import { NavLink, Link, useNavigate } from "react-router-dom";
+import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { BiLogOut } from "react-icons/bi";
 import Avatar from "./Avatar";
 import { useDispatch, useSelector } from "react-redux";
@@ -23,7 +23,7 @@ function SidebarUser() {
 
   const dispatch = useDispatch();
   const navigate = useNavigate()
-
+  const location = useLocation();
 
   const handleLogout = () => {
       dispatch(logout());
@@ -32,27 +32,66 @@ function SidebarUser() {
   }
   useEffect(() => {
     if (socketConnection) {
+      // Initial load of conversations
       socketConnection.emit("sidebar", user._id);
 
+      // Handle conversation updates
       socketConnection.on("conversation", (data) => {
-        console.log("conversation", data);
-        const conversationUserData = data.map((ConvoUser) => {
-          if (ConvoUser.sender?._id === user?._id) {
-            return {
-              ...ConvoUser,
-              userDetails: ConvoUser?.receiver,
-            };
-          } else {
-            return {
-              ...ConvoUser,
-              userDetails: ConvoUser?.sender,
-            };
-          }
-        });
-        setAllUsers(conversationUserData);
+        console.log("conversation update received:", data);
+        if (data && Array.isArray(data.conversations)) {
+          const conversationUserData = data.conversations
+            .sort((a, b) => {
+              // Sort by last message timestamp
+              const aTime = a.lastMsg?.createdAt || a.createdAt;
+              const bTime = b.lastMsg?.createdAt || b.createdAt;
+              return new Date(bTime) - new Date(aTime);
+            })
+            .map((ConvoUser) => {
+              const isCurrentUser = ConvoUser.sender?._id === user?._id;
+              const otherUser = isCurrentUser ? ConvoUser?.receiver : ConvoUser?.sender;
+              return {
+                ...ConvoUser,
+                userDetails: otherUser,
+                isActive: ConvoUser._id === data.currentConversationId,
+                lastMessage: ConvoUser.lastMsg
+              };
+            });
+          console.log("Processed conversation data:", conversationUserData);
+          setAllUsers(conversationUserData);
+        } else {
+          console.warn("Invalid conversation data received:", data);
+          setAllUsers([]);
+        }
+      });
+
+      // Handle online status updates
+      socketConnection.on("onlineUser", (onlineUsers) => {
+        setAllUsers(prevUsers => 
+          prevUsers.map(user => ({
+            ...user,
+            userDetails: {
+              ...user.userDetails,
+              online: onlineUsers.includes(user.userDetails?._id)
+            }
+          }))
+        );
       });
     }
+
+    return () => {
+      if (socketConnection) {
+        socketConnection.off("conversation");
+        socketConnection.off("onlineUser");
+      }
+    };
   }, [socketConnection, user]);
+
+  // Update conversation list when route changes
+  useEffect(() => {
+    if (socketConnection && user?._id) {
+      socketConnection.emit("sidebar", user._id);
+    }
+  }, [location.pathname, socketConnection, user?._id]);
 
   return (
     <div className="w-full h-screen flex">
@@ -128,7 +167,9 @@ function SidebarUser() {
                   key={conv?._id}
                   className="no-underline w-full"
                 >
-                  <div className="flex items-center gap-2 p-3 rounded-lg transition-colors hover:bg-[#1b252c] cursor-pointer">
+                  <div className={`flex items-center gap-2 p-3 rounded-lg transition-colors hover:bg-[#1b252c] cursor-pointer ${
+                    conv.isActive ? 'bg-[#2a3942]' : ''
+                  }`}>
                     <Avatar
                       imageUrl={conv?.userDetails?.profile_pic}
                       name={conv?.userDetails?.name}

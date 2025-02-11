@@ -37,6 +37,7 @@ function MessPage() {
   });
 
   const [allMessage, setAllMessage] = useState([]);
+  const [currentConversation, setCurrentConversation] = useState(null);
   const currentMessage = useRef(null);
 
   useEffect(() => {
@@ -103,20 +104,58 @@ function MessPage() {
 
   useEffect(() => {
     if (socketConnection) {
+      // Clear previous listeners
+      socketConnection.off("message-user");
+      socketConnection.off("message");
+      socketConnection.off("error");
+      
+      // Request messages for this user
       socketConnection.emit("message-page", userId);
   
+      // Handle user data
       socketConnection.on("message-user", (data) => {
-        setDataUser(data);
-      });
-      // message event 
-      socketConnection.on("message", (data) => {
-        console.log("message convo", data);
-        setAllMessage(data);
+        console.log("Received message-user data:", data);
+        if (data && data.user) {
+          setDataUser(data.user);
+          setCurrentConversation(data.conversationId);
+        }
       });
 
+      // Handle messages
+      socketConnection.on("message", (data) => {
+        console.log("Received message data:", data);
+        if (data && Array.isArray(data.messages)) {
+          // Only update messages if they belong to the current conversation
+          if (data.conversationId === currentConversation || 
+              !currentConversation || 
+              (data.participants && 
+               (data.participants.sender === userId || data.participants.receiver === userId))) {
+            setAllMessage(data.messages);
+            setCurrentConversation(data.conversationId);
+          }
+        } else {
+          console.warn("Received invalid message data:", data);
+        }
+      });
+
+      // Handle errors
+      socketConnection.on("error", (error) => {
+        console.error("Socket error:", error);
+        toast.error(error);
+      });
+
+      // Mark messages as seen
       socketConnection.emit('seen', userId);
     }
-  }, [socketConnection, userId, user]);
+
+    return () => {
+      if (socketConnection) {
+        socketConnection.off("message-user");
+        socketConnection.off("message");
+        socketConnection.off("error");
+      }
+    };
+  }, [socketConnection, userId, user, currentConversation]);
 
   const handleOnChange = (e) => {
     const { name, value } = e.target;
@@ -131,22 +170,35 @@ function MessPage() {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (message?.text || message?.imageUrl || message?.videoUrl) {
+    if ((message?.text?.trim() || message?.imageUrl || message?.videoUrl)) {
+      console.log("Sending message with data:", {
+        sender: user?._id,
+        receiver: userId,
+        text: message.text,
+        imageUrl: message.imageUrl,
+        videoUrl: message.videoUrl,
+        msgByUserId: user?._id,
+        conversationId: currentConversation
+      });
+
       if (socketConnection) {
         socketConnection.emit("new message", {
           sender: user?._id,
           receiver: userId,
-          text: message.text,
-          imageUrl: message.imageUrl,
-          videoUrl: message.videoUrl,
+          text: message.text?.trim() || "",
+          imageUrl: message.imageUrl || "",
+          videoUrl: message.videoUrl || "",
           msgByUserId: user?._id,
+          conversationId: currentConversation
+        });
+
+        // Clear message input immediately after sending
+        setMessage({
+          text: "",
+          videoUrl: "",
+          imageUrl: "",
         });
       }
-      setMessage({
-        text: "",
-        videoUrl: "",
-        imageUrl: "",
-      });
     }
   };
 
@@ -198,62 +250,68 @@ function MessPage() {
 
         <section className="h-[calc(100vh-134px)] overflow-x-hidden overflow-y-scroll scrollbar">
           <div className="flex flex-col gap-2 py-3 lg:mx-5 mx-2" ref={currentMessage}>
-            {allMessage.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex ${
-                  user?._id === msg.msgByUserId ? "justify-end" : "justify-start "
-                }`}
-              >
+            {Array.isArray(allMessage) && allMessage.length > 0 ? (
+              allMessage.map((msg, index) => (
                 <div
-                  className={`${
-                    msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
-                  } items-center gap-4 py-2 px-4 rounded-lg shadow-lg ${
-                    user?._id === msg.msgByUserId
-                      ? "bg-[#074d40] text-[#fdfcfc]"
-                      : "bg-[#323131] text-[#fffefe]"
+                  key={msg._id || index}
+                  className={`flex ${
+                    user?._id === msg.msgByUserId ? "justify-end" : "justify-start "
                   }`}
                 >
-                  {msg.imageUrl ? (
-                    <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
-                      <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
-                        <img
-                          src={msg.imageUrl}
-                          className=" object-cover h-[320px]"
-                          alt=""
-                        />
-                      </a>
-                      <p className="text-lg break-words mt-2">{msg.text}</p>
-                      <p className="text-xs mt-2 text-slate-300">
-                        {moment(msg.createdAt).format("hh:mm A")}
-                      </p>
-                    </div>
-                  ) : msg.videoUrl ? (
-                    <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
-                      <video
-                        controls
-                        className="w-[250px] h-auto m-0" 
-                        src={msg.videoUrl}
-                      >
-                      </video>
-                      <p className="text-lg break-words mt-2">{msg.text}</p>
-                      <p className="text-xs text-slate-300">
-                        {moment(msg.createdAt).format("hh:mm A")}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between w-full">
-                      <p className="text-lg break-words flex-grow">
-                        {msg.text}
-                      </p>
-                      <p className="text-xs ml-4 self-end text-slate-300">
-                        {moment(msg.createdAt).format("hh:mm A")}
-                      </p>
-                    </div>
-                  )}
+                  <div
+                    className={`${
+                      msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
+                    } items-center gap-4 py-2 px-4 rounded-lg shadow-lg ${
+                      user?._id === msg.msgByUserId
+                        ? "bg-[#074d40] text-[#fdfcfc]"
+                        : "bg-[#323131] text-[#fffefe]"
+                    }`}
+                  >
+                    {msg.imageUrl ? (
+                      <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
+                        <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={msg.imageUrl}
+                            className=" object-cover h-[320px]"
+                            alt=""
+                          />
+                        </a>
+                        <p className="text-lg break-words mt-2">{msg.text}</p>
+                        <p className="text-xs mt-2 text-slate-300">
+                          {moment(msg.createdAt).format("hh:mm A")}
+                        </p>
+                      </div>
+                    ) : msg.videoUrl ? (
+                      <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
+                        <video
+                          controls
+                          className="w-[250px] h-auto m-0" 
+                          src={msg.videoUrl}
+                        >
+                        </video>
+                        <p className="text-lg break-words mt-2">{msg.text}</p>
+                        <p className="text-xs text-slate-300">
+                          {moment(msg.createdAt).format("hh:mm A")}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between w-full">
+                        <p className="text-lg break-words flex-grow">
+                          {msg.text}
+                        </p>
+                        <p className="text-xs ml-4 self-end text-slate-300">
+                          {moment(msg.createdAt).format("hh:mm A")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-400 py-4">
+                No messages yet. Start a conversation!
               </div>
-            ))}
+            )}
           </div>
 
           {message?.imageUrl && (

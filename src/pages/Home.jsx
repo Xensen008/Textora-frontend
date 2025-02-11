@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
@@ -11,12 +11,15 @@ import {
 import SidebarUser from "../components/SidebarUser";
 import logo from "../assets/Textora3.jpg";
 import io from "socket.io-client";
+import { toast } from "react-hot-toast";
+import MessPage from "../components/MessPage";
 
 function Home() {
   const user = useSelector((state) => state.user);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserDetails = async () => {
     try {
@@ -36,7 +39,7 @@ function Home() {
       });
       
       if (response?.data?.data) {
-        dispatch(setUser(response.data.data));
+        dispatch(setUser({ ...response.data.data, token }));
       } else {
         console.log("No user data received");
         dispatch(logout());
@@ -51,58 +54,136 @@ function Home() {
       console.error("error:", error);
       dispatch(logout());
       navigate("/email");
+    } finally {
+      setIsLoading(true);
     }
   };
 
+  // Fetch user details first
   useEffect(() => {
     fetchUserDetails();
   }, []);
 
-  // socket connection
+  // Setup socket connection after we have user data
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.log("No token found for socket connection");
-      navigate("/email");
-      return;
-    }
+    let socket = null;
+    let retryCount = 0;
+    const maxRetries = 5;
+    const retryDelay = 3000;
 
-    const socketUrl = import.meta.env.VITE_APP_BACKEND_URL;
-    if (!socketUrl) {
-      console.error("Backend URL not configured");
-      return;
-    }
-
-    const wsUrl = socketUrl.replace(/^http/, "ws");
-    
-    const socketConnection = io(wsUrl, {
-      auth: {
-        token: token,
-      },
-      transports: ["websocket"],
-      withCredentials: true
-    });
-
-    socketConnection.on("disconnect", (reason) => {
-      console.error("disconnected :", reason);
-
-      if (reason === "io server disconnect") {
-        socketConnection.connect();
+    const connectSocket = () => {
+      const token = localStorage.getItem("token");
+      if (!token || !user?._id) {
+        console.log("Waiting for user data before connecting socket");
+        return;
       }
-    });
 
-    socketConnection.on("onlineUser", (data) => {
-      console.log(data);
-      dispatch(setOnlineUser(data));
-    });
+      try {
+        // Close existing connection if any
+        if (socket) {
+          socket.close();
+        }
 
-    dispatch(setSocketConnection(socketConnection));
-    return () => {
-      socketConnection.disconnect();
+        const socketUrl = import.meta.env.VITE_APP_BACKEND_URL || "http://localhost:8080";
+        console.log("Connecting to socket at:", socketUrl);
+
+        // Initialize socket with proper configuration
+        socket = io(socketUrl, {
+          path: '/socket.io/',
+          transports: ['polling', 'websocket'],
+          auth: {
+            token
+          },
+          reconnection: true,
+          reconnectionAttempts: maxRetries,
+          reconnectionDelay: retryDelay,
+          timeout: 20000,
+          forceNew: true,
+          withCredentials: true
+        });
+
+        // Connection event handlers
+        socket.on("connect", () => {
+          console.log("Socket connected successfully with ID:", socket.id);
+          dispatch(setSocketConnection(socket));
+          retryCount = 0;
+        });
+
+        socket.on("connect_error", (error) => {
+          console.error("Socket connection error:", error.message);
+          retryCount++;
+          
+          if (retryCount >= maxRetries) {
+            toast.error("Unable to connect to chat server. Please try refreshing the page.");
+            return;
+          }
+          
+          console.log(`Retrying connection... Attempt ${retryCount}/${maxRetries}`);
+          toast.error(`Connection failed. Retrying... (${retryCount}/${maxRetries})`);
+          
+          // Force a reconnection
+          setTimeout(() => {
+            socket.connect();
+          }, retryDelay);
+        });
+
+        socket.on("disconnect", (reason) => {
+          console.log("Socket disconnected:", reason);
+          dispatch(setSocketConnection(null));
+          
+          if (reason === "io server disconnect" || reason === "transport close") {
+            console.log("Attempting to reconnect...");
+            setTimeout(() => {
+              socket.connect();
+            }, retryDelay);
+          }
+        });
+
+        socket.on("onlineUser", (data) => {
+          console.log("Online users:", data);
+          dispatch(setOnlineUser(data));
+        });
+
+        socket.on("error", (error) => {
+          console.error("Socket error:", error);
+          toast.error("Chat server error. Please try refreshing the page.");
+        });
+
+        // Initial connection
+        socket.connect();
+
+      } catch (error) {
+        console.error("Socket initialization error:", error);
+        toast.error("Failed to initialize chat connection");
+      }
     };
-  }, [dispatch, navigate]);
+
+    if (user?._id) {
+      console.log("Attempting socket connection for user:", user._id);
+      connectSocket();
+    }
+
+    return () => {
+      if (socket) {
+        console.log("Cleaning up socket connection");
+        socket.off("connect");
+        socket.off("connect_error");
+        socket.off("disconnect");
+        socket.off("onlineUser");
+        socket.off("error");
+        socket.disconnect();
+      }
+    };
+  }, [user?._id, dispatch]);
+
+  if (isLoading && !user?._id) {
+    return <div className="flex justify-center items-center h-screen">
+      <p className="text-lg">Loading...</p>
+    </div>;
+  }
 
   const basePath = location.pathname === "/";
+
   return (
     <div className="grid lg:grid-cols-[380px,1fr] h-screen max-h-screen">
       <section className={`bg-[#d1d8cd] ${!basePath && "hidden"} lg:block`}>
