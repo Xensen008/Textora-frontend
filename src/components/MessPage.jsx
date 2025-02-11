@@ -128,13 +128,11 @@ function MessPage() {
       socketConnection.on("message", (data) => {
         console.log("Received message data:", data);
         if (data && Array.isArray(data.messages)) {
-          // Only update messages if they belong to the current user's conversation
-          if (data.participants && 
-              (data.participants.sender === userId || data.participants.receiver === userId) &&
-              data.conversationId === currentConversation) {
-            setAllMessage(data.messages);
-          } else if (!currentConversation) {
-            // If no conversation is set yet, set the first one
+          // For new conversations or if messages belong to current conversation
+          if (!currentConversation || 
+              data.conversationId === currentConversation ||
+              (data.participants && 
+               (data.participants.sender === userId || data.participants.receiver === userId))) {
             setAllMessage(data.messages);
             setCurrentConversation(data.conversationId);
           }
@@ -195,21 +193,25 @@ function MessPage() {
       });
 
       if (socketConnection) {
-        socketConnection.emit("new message", {
-          sender: user?._id,
-          receiver: userId,
+        // Clear message input immediately after sending
+        const messageToSend = {
           text: message.text?.trim() || "",
           imageUrl: message.imageUrl || "",
           videoUrl: message.videoUrl || "",
-          msgByUserId: user?._id,
-          conversationId: currentConversation
-        });
+        };
 
-        // Clear message input immediately after sending
         setMessage({
           text: "",
           videoUrl: "",
           imageUrl: "",
+        });
+
+        socketConnection.emit("new message", {
+          sender: user?._id,
+          receiver: userId,
+          ...messageToSend,
+          msgByUserId: user?._id,
+          conversationId: currentConversation
         });
       }
     }
