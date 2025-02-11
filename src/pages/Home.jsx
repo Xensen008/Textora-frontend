@@ -107,6 +107,9 @@ function Home() {
           console.log("Socket connected successfully with ID:", socket.id);
           dispatch(setSocketConnection(socket));
           retryCount = 0;
+          
+          // Request initial conversations after successful connection
+          socket.emit("get-conversations");
         });
 
         socket.on("connect_error", (error) => {
@@ -147,6 +150,12 @@ function Home() {
         socket.on("error", (error) => {
           console.error("Socket error:", error);
           toast.error("Chat server error. Please try refreshing the page.");
+        });
+
+        // Add handler for receiving initial conversations
+        socket.on("conversations", (data) => {
+          console.log("Received initial conversations:", data);
+          // The data will be handled by your conversations component
         });
 
         // Initial connection

@@ -33,11 +33,11 @@ function SidebarUser() {
   useEffect(() => {
     if (socketConnection) {
       // Initial load of conversations
-      socketConnection.emit("sidebar", user._id);
+      socketConnection.emit("get-conversations");
 
       // Handle conversation updates
-      socketConnection.on("conversation", (data) => {
-        console.log("conversation update received:", data);
+      socketConnection.on("conversations", (data) => {
+        console.log("Received conversations data:", data);
         if (data && Array.isArray(data.conversations)) {
           const conversationUserData = data.conversations
             .sort((a, b) => {
@@ -80,7 +80,7 @@ function SidebarUser() {
 
     return () => {
       if (socketConnection) {
-        socketConnection.off("conversation");
+        socketConnection.off("conversations");
         socketConnection.off("onlineUser");
       }
     };
@@ -89,7 +89,7 @@ function SidebarUser() {
   // Update conversation list when route changes
   useEffect(() => {
     if (socketConnection && user?._id) {
-      socketConnection.emit("sidebar", user._id);
+      socketConnection.emit("get-conversations");
     }
   }, [location.pathname, socketConnection, user?._id]);
 
