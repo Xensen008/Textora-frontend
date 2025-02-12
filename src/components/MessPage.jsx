@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 import Avatar from "./Avatar";
 import { HiDotsVertical } from "react-icons/hi";
-import { FaAngleLeft, FaTrash } from "react-icons/fa6";
+import { FaAngleLeft, FaTrash, FaBan, FaUnlock } from "react-icons/fa6";
 import { FaCirclePlus } from "react-icons/fa6";
 import { FaImage } from "react-icons/fa6";
 import { FaVideo } from "react-icons/fa6";
@@ -42,6 +42,8 @@ function MessPage() {
   const currentMessage = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [messageToDelete, setMessageToDelete] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
     if (currentMessage.current) {
@@ -105,48 +107,51 @@ function MessPage() {
     setOpenImageVideoUpload((prev) => !prev);
   };
 
+  const getMessageSectionHeight = () => {
+    if (isBlocked) {
+      return "h-[calc(100vh-166px)]";
+    }
+    return "h-[calc(100vh-134px)]";
+  };
+
   useEffect(() => {
     if (socketConnection) {
-      // Clear previous listeners
       socketConnection.off("message-user");
       socketConnection.off("message");
       socketConnection.off("error");
       socketConnection.off("delete_success");
       
-      // Emit leave event for previous conversation
       socketConnection.emit("leave-conversation");
       
-      // Request messages for this user
       socketConnection.emit("message-page", userId);
   
-      // Handle user data
       socketConnection.on("message-user", (data) => {
         console.log("Received message-user data:", data);
         if (data && data.user) {
           setDataUser(data.user);
           setCurrentConversation(data.conversationId);
+          setIsBlocked(data.user.isBlocked);
+          
+          if (data.user.isBlocked) {
+            setAllMessage([]);
+          }
         }
       });
 
-      // Handle messages and deletion updates
       socketConnection.on("message", (data) => {
         console.log("Received message data:", data);
         if (data && Array.isArray(data.messages)) {
-          // For new conversations or if messages belong to current conversation
           if (!currentConversation || 
               data.conversationId === currentConversation ||
               (data.participants && 
                (data.participants.sender === userId || data.participants.receiver === userId))) {
             
-            // If this is a deletion update, show toast for the receiver only
-            if (data.deletedMessageId && 
-                data.messages.find(m => m._id === data.deletedMessageId)?.msgByUserId !== user?._id) {
-              toast.info("A message was deleted");
+            if (isBlocked) {
+              setAllMessage([]);
+              return;
             }
-            
-            // Process messages based on whether user is sender or receiver
+
             const updatedMessages = data.messages.filter(msg => {
-              // If message is deleted and user is the sender, remove it completely
               if (msg.deleted && msg.msgByUserId === user?._id) {
                 return false;
               }
@@ -159,17 +164,14 @@ function MessPage() {
         }
       });
 
-      // Handle delete success
       socketConnection.on("delete_success", ({ messageId }) => {
         console.log("Message deleted successfully:", messageId);
         toast.success("Message deleted successfully");
         
-        // Immediately remove the message for the sender
         setAllMessage(prevMessages => 
           prevMessages.filter(msg => msg._id !== messageId)
         );
 
-        // Emit a special event to force receiver to update immediately
         socketConnection.emit("force_message_update", {
           messageId,
           conversationId: currentConversation,
@@ -177,7 +179,6 @@ function MessPage() {
         });
       });
 
-      // Handle forced message update
       socketConnection.on("force_message_update", ({ messageId }) => {
         setAllMessage(prevMessages => 
           prevMessages.map(msg => 
@@ -188,10 +189,27 @@ function MessPage() {
         );
       });
 
-      // Handle errors
       socketConnection.on("error", (error) => {
         console.error("Socket error:", error);
         toast.error(error);
+      });
+
+      socketConnection.on('block_success', ({ blockedUserId }) => {
+        if (blockedUserId === userId) {
+          setIsBlocked(true);
+          setAllMessage([]);
+          toast.success('User blocked successfully');
+          setShowMenu(false);
+        }
+      });
+
+      socketConnection.on('unblock_success', ({ unblockedUserId }) => {
+        if (unblockedUserId === userId) {
+          setIsBlocked(false);
+          socketConnection.emit("message-page", userId);
+          toast.success('User unblocked successfully');
+          setShowMenu(false);
+        }
       });
     }
 
@@ -203,18 +221,17 @@ function MessPage() {
         socketConnection.off("error");
         socketConnection.off("delete_success");
         socketConnection.off("force_message_update");
+        socketConnection.off('block_success');
+        socketConnection.off('unblock_success');
       }
     };
-  }, [socketConnection, userId, currentConversation, user?._id]);
+  }, [socketConnection, userId, currentConversation, user?._id, isBlocked]);
 
-  // Add a new effect to handle conversation switching
   useEffect(() => {
     if (socketConnection && userId) {
-      // Clear current conversation when switching users
       setCurrentConversation(null);
       setAllMessage([]);
       
-      // Request messages for the new user
       socketConnection.emit("message-page", userId);
     }
   }, [userId, socketConnection]);
@@ -244,7 +261,6 @@ function MessPage() {
       });
 
       if (socketConnection) {
-        // Clear message input immediately after sending
         const messageToSend = {
           text: message.text?.trim() || "",
           imageUrl: message.imageUrl || "",
@@ -268,7 +284,6 @@ function MessPage() {
     }
   };
 
-  // Update delete message handler
   const handleDeleteMessage = (message) => {
     setMessageToDelete(message);
   };
@@ -288,21 +303,31 @@ function MessPage() {
     }
   };
 
+  const handleBlockUser = () => {
+    if (socketConnection && userId) {
+      socketConnection.emit('block_user', { userIdToBlock: userId });
+    }
+  };
+
+  const handleUnblockUser = () => {
+    if (socketConnection && userId) {
+      socketConnection.emit('unblock_user', { userIdToUnblock: userId });
+    }
+  };
+
   return (
     <div className="relative">
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
-        {/* Overlay with blur or transparency */}
         <div className="absolute inset-0 bg-[#222222] bg-opacity-30 backdrop-blur-sm"></div>
       </div>
-      <div className="relative">
-        <header className="sticky top-0  bg-[#202c33]  text-white ">
+      <div className="relative flex flex-col h-screen">
+        <header className="sticky top-0 bg-[#202c33] text-white z-10">
           <div className="container mx-auto flex justify-between items-center p-2.5 rounded-lg">
             <div className="flex items-center gap-4 lg:ml-3">
               {" "}
-              {/* Adjusted margin here */}
               <Link className="lg:hidden" to={"/"}>
                 <FaAngleLeft size={25} />
               </Link>
@@ -326,17 +351,48 @@ function MessPage() {
                 </p>
               </div>
             </div>
-            <button className="cursor-pointer">
-              <HiDotsVertical className="text-2xl text-gray-600" />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowMenu(!showMenu)}
+                className="cursor-pointer p-2 hover:bg-[#323131] rounded-full"
+              >
+                <HiDotsVertical className="text-2xl text-gray-600" />
+              </button>
+              
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-[#202c33] rounded-md shadow-lg z-50">
+                  {isBlocked ? (
+                    <button
+                      onClick={handleUnblockUser}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-300 hover:bg-[#323131]"
+                    >
+                      <FaUnlock className="mr-2" />
+                      Unblock User
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleBlockUser}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-[#323131]"
+                    >
+                      <FaBan className="mr-2" />
+                      Block User
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
-        {/* show all message */}
+        {isBlocked && (
+          <div className="bg-red-500 bg-opacity-10 text-red-400 text-center py-2 px-4 border-b border-red-500 border-opacity-20">
+            You have blocked this user. They can still send messages, but you won't see them.
+          </div>
+        )}
 
-        <section className="h-[calc(100vh-134px)] overflow-x-hidden overflow-y-scroll scrollbar">
+        <section className={`${getMessageSectionHeight()} overflow-x-hidden overflow-y-scroll scrollbar flex-grow`}>
           <div className="flex flex-col gap-2 py-3 lg:mx-5 mx-2" ref={currentMessage}>
-            {Array.isArray(allMessage) && allMessage.length > 0 ? (
+            {!isBlocked && Array.isArray(allMessage) && allMessage.length > 0 ? (
               allMessage.map((msg, index) => (
                 <div
                   key={msg._id || index}
@@ -355,7 +411,6 @@ function MessPage() {
                           : "bg-[#323131] text-[#fffefe]"
                     }`}
                   >
-                    {/* Delete button */}
                     {!msg.deleted && user?._id === msg.msgByUserId && (
                       <button
                         onClick={() => handleDeleteMessage(msg)}
@@ -366,7 +421,6 @@ function MessPage() {
                       </button>
                     )}
                     
-                    {/* Message content */}
                     {msg.deleted && msg.msgByUserId !== user?._id ? (
                       <div className="flex items-center gap-2 text-gray-400 italic">
                         <FaTrash className="w-3 h-3" />
@@ -416,7 +470,7 @@ function MessPage() {
               ))
             ) : (
               <div className="text-center text-gray-400 py-4">
-                No messages yet. Start a conversation!
+                {isBlocked ? 'Messages are hidden while this user is blocked.' : 'No messages yet. Start a conversation!'}
               </div>
             )}
           </div>
@@ -441,7 +495,6 @@ function MessPage() {
               </div>
             </div>
           )}
-          {/* video section */}
           {message?.videoUrl && (
             <div className="w-full h-full sticky bottom-0 bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
               <div>
@@ -467,15 +520,18 @@ function MessPage() {
           )}
         </section>
 
-        <section className="h-16 bg-[#1a2326] flex items-center px-2">
+        <section className="h-16 bg-[#1a2326] flex items-center px-2 mt-auto">
           <div className="relative ">
             <button
               onClick={handleOpenVideoImage}
-              className="flex justify-center items-center w-10 h-10 rounded-full hover:bg-[#323131]"
+              className={`flex justify-center items-center w-10 h-10 rounded-full ${
+                isBlocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#323131]'
+              }`}
+              disabled={isBlocked}
             >
               <FaCirclePlus size={20} className="text-[#b5c0b0]" />
             </button>
-            {openImageVideoUpload && (
+            {openImageVideoUpload && !isBlocked && (
               <div className="bg-[#1a2326] shadow rounded absolute bottom-14 w-36 p-2 ">
                 <form>
                   <label
@@ -513,26 +569,30 @@ function MessPage() {
             )}
           </div>
 
-          {/* input for mess */}
           <form
             className="h-full w-full flex gap-3"
             onSubmit={handleSendMessage}
           >
             <input
               type="text"
-              placeholder="Type a Message..."
-              className="py-1 px-4 outline-none w-full h-full bg-[#131c21] text-[#FFFFFF] placeholder-[#B5C0B0] rounded-full"
+              placeholder={isBlocked ? "You cannot send messages while blocked" : "Type a Message..."}
+              className={`py-1 px-4 outline-none w-full h-full bg-[#131c21] text-[#FFFFFF] placeholder-[#B5C0B0] rounded-full ${
+                isBlocked ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
               value={message?.text}
               onChange={handleOnChange}
+              disabled={isBlocked}
             />
-            <button className="cursor-pointer hover:text-[#B5C0B0]">
+            <button 
+              className={`cursor-pointer hover:text-[#B5C0B0] ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isBlocked}
+            >
               <IoMdSend size={25} className="text-[#b5c0b0]" />
             </button>
           </form>
         </section>
       </div>
 
-      {/* Delete Confirmation Modal */}
       {messageToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-[#202c33] p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
