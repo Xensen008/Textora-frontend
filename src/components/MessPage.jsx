@@ -13,6 +13,7 @@ import { toast } from "react-hot-toast";
 import backgroundImage from "../assets/wallpaper.jpg";
 import { IoMdSend } from "react-icons/io";
 import moment from "moment";
+import { BsCheck, BsCheckAll } from "react-icons/bs";
 
 function MessPage() {
   const { userId } = useParams();
@@ -45,6 +46,9 @@ function MessPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
 
+  // Add new state for message statuses
+  const [messageStatuses, setMessageStatuses] = useState({});
+
   useEffect(() => {
     if (currentMessage.current) {
       currentMessage.current.scrollIntoView({
@@ -52,6 +56,17 @@ function MessPage() {
         block: "end",
       });
     }
+  }, [allMessage]);
+
+  // Update message statuses when messages change
+  useEffect(() => {
+    const newStatuses = {};
+    allMessage.forEach(msg => {
+      if (msg.status) {
+        newStatuses[msg._id] = msg.status;
+      }
+    });
+    setMessageStatuses(prev => ({...prev, ...newStatuses}));
   }, [allMessage]);
 
   const handleImageUpload = async (e) => {
@@ -116,30 +131,88 @@ function MessPage() {
 
   useEffect(() => {
     if (socketConnection) {
+      // Clean up previous listeners first
       socketConnection.off("message-user");
       socketConnection.off("message");
+      socketConnection.off("new_message");
       socketConnection.off("error");
       socketConnection.off("delete_success");
+      socketConnection.off("message_status_update");
+      socketConnection.off("force_message_update");
+      socketConnection.off('block_success');
+      socketConnection.off('unblock_success');
       
       socketConnection.emit("leave-conversation");
-      
       socketConnection.emit("message-page", userId);
   
       socketConnection.on("message-user", (data) => {
-        console.log("Received message-user data:", data);
-        if (data && data.user) {
-          setDataUser(data.user);
-          setCurrentConversation(data.conversationId);
-          setIsBlocked(data.user.isBlocked);
+        setDataUser(data.user);
+        setCurrentConversation(data.conversationId);
+        setIsBlocked(data.user.isBlocked);
+        
+        if (data.user.isBlocked) {
+          setAllMessage([]);
+          setMessageStatuses({});
+        }
+      });
+
+      // Handle new messages
+      socketConnection.on("new_message", (data) => {
+        if (data && Array.isArray(data.messages) && data.messages.length > 0) {
+          const newMessage = data.messages[0];
           
-          if (data.user.isBlocked) {
-            setAllMessage([]);
+          if (!isBlocked && (!currentConversation || data.conversationId === currentConversation)) {
+            setMessageStatuses(prev => ({
+              ...prev,
+              [newMessage._id]: newMessage.status
+            }));
+
+            setAllMessage(prev => {
+              // If this is replacing a temporary message
+              if (data.replaceTemp) {
+                return prev.map(msg => 
+                  msg._id === data.replaceTemp ? newMessage : msg
+                );
+              }
+              
+              // If this is a temporary message
+              if (data.isTemp) {
+                // Check if we already have this temp message
+                if (prev.some(msg => msg._id === newMessage._id)) {
+                  return prev;
+                }
+                return [...prev, newMessage];
+              }
+              
+              // If this is a new message from another user
+              if (newMessage.msgByUserId !== user?._id) {
+                // Check for duplicates
+                if (prev.some(msg => msg._id === newMessage._id)) {
+                  return prev;
+                }
+                
+                // Mark as seen immediately
+                if (socketConnection && data.conversationId) {
+                  socketConnection.emit('message_seen', {
+                    messageId: newMessage._id,
+                    conversationId: data.conversationId
+                  });
+                }
+                return [...prev, newMessage];
+              }
+              
+              // For regular messages, check for duplicates
+              if (!prev.some(msg => msg._id === newMessage._id)) {
+                return [...prev, newMessage];
+              }
+              return prev;
+            });
           }
         }
       });
 
+      // Handle initial messages and updates
       socketConnection.on("message", (data) => {
-        console.log("Received message data:", data);
         if (data && Array.isArray(data.messages)) {
           if (!currentConversation || 
               data.conversationId === currentConversation ||
@@ -148,20 +221,78 @@ function MessPage() {
             
             if (isBlocked) {
               setAllMessage([]);
+              setMessageStatuses({});
               return;
             }
 
-            const updatedMessages = data.messages.filter(msg => {
-              if (msg.deleted && msg.msgByUserId === user?._id) {
-                return false;
-              }
-              return true;
+            const updatedMessages = data.messages.filter(msg => 
+              !(msg.deleted && msg.msgByUserId === user?._id)
+            );
+            
+            // Update message statuses in batch
+            setMessageStatuses(prev => {
+              const newStatuses = { ...prev };
+              updatedMessages.forEach(msg => {
+                if (msg.status && (!newStatuses[msg._id] || getStatusPriority(msg.status) > getStatusPriority(newStatuses[msg._id]))) {
+                  newStatuses[msg._id] = msg.status;
+                }
+              });
+              return newStatuses;
             });
             
             setAllMessage(updatedMessages);
             setCurrentConversation(data.conversationId);
+
+            // Mark messages as seen in batch
+            const unseenMessages = updatedMessages.filter(msg => 
+              msg.msgByUserId !== user?._id && msg.status !== 'seen'
+            );
+
+            if (unseenMessages.length > 0 && socketConnection && data.conversationId) {
+              // Update local status immediately for all unseen messages
+              setMessageStatuses(prev => {
+                const newStatuses = { ...prev };
+                unseenMessages.forEach(msg => {
+                  newStatuses[msg._id] = 'seen';
+                });
+                return newStatuses;
+              });
+
+              // Send seen status to server for all messages at once
+              unseenMessages.forEach(msg => {
+                socketConnection.emit('message_seen', {
+                  messageId: msg._id,
+                  conversationId: data.conversationId
+                });
+              });
+            }
           }
         }
+      });
+
+      // Handle message status updates
+      socketConnection.on("message_status_update", ({ messageId, status, deliveredAt, seenAt }) => {
+        setMessageStatuses(prev => {
+          const currentStatus = prev[messageId];
+          if (!currentStatus || getStatusPriority(status) > getStatusPriority(currentStatus)) {
+            // Update the message in allMessage to include timestamps
+            setAllMessage(prevMessages => 
+              prevMessages.map(msg => 
+                msg._id === messageId 
+                  ? {
+                      ...msg,
+                      status,
+                      deliveredAt: deliveredAt || msg.deliveredAt,
+                      seenAt: seenAt || msg.seenAt,
+                      seen: status === 'seen'
+                    }
+                  : msg
+              )
+            );
+            return { ...prev, [messageId]: status };
+          }
+          return prev;
+        });
       });
 
       socketConnection.on("delete_success", ({ messageId }) => {
@@ -198,6 +329,7 @@ function MessPage() {
         if (blockedUserId === userId) {
           setIsBlocked(true);
           setAllMessage([]);
+          setMessageStatuses({});
           toast.success('User blocked successfully');
           setShowMenu(false);
         }
@@ -218,14 +350,22 @@ function MessPage() {
         socketConnection.emit("leave-conversation");
         socketConnection.off("message-user");
         socketConnection.off("message");
+        socketConnection.off("new_message");
         socketConnection.off("error");
         socketConnection.off("delete_success");
+        socketConnection.off("message_status_update");
         socketConnection.off("force_message_update");
         socketConnection.off('block_success');
         socketConnection.off('unblock_success');
       }
     };
   }, [socketConnection, userId, currentConversation, user?._id, isBlocked]);
+
+  // Helper function to determine status priority
+  const getStatusPriority = (status) => {
+    const priorities = { sent: 1, delivered: 2, seen: 3 };
+    return priorities[status] || 0;
+  };
 
   useEffect(() => {
     if (socketConnection && userId) {
@@ -249,38 +389,28 @@ function MessPage() {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if ((message?.text?.trim() || message?.imageUrl || message?.videoUrl)) {
-      console.log("Sending message with data:", {
+    if ((message?.text?.trim() || message?.imageUrl || message?.videoUrl) && socketConnection) {
+      const messageToSend = {
+        text: message.text?.trim() || "",
+        imageUrl: message.imageUrl || "",
+        videoUrl: message.videoUrl || "",
+      };
+
+      // Clear input immediately for better UX
+      setMessage({
+        text: "",
+        videoUrl: "",
+        imageUrl: "",
+      });
+
+      // Send message only once
+      socketConnection.emit("new message", {
         sender: user?._id,
         receiver: userId,
-        text: message.text,
-        imageUrl: message.imageUrl,
-        videoUrl: message.videoUrl,
+        ...messageToSend,
         msgByUserId: user?._id,
         conversationId: currentConversation
       });
-
-      if (socketConnection) {
-        const messageToSend = {
-          text: message.text?.trim() || "",
-          imageUrl: message.imageUrl || "",
-          videoUrl: message.videoUrl || "",
-        };
-
-        setMessage({
-          text: "",
-          videoUrl: "",
-          imageUrl: "",
-        });
-
-        socketConnection.emit("new message", {
-          sender: user?._id,
-          receiver: userId,
-          ...messageToSend,
-          msgByUserId: user?._id,
-          conversationId: currentConversation
-        });
-      }
     }
   };
 
@@ -313,6 +443,33 @@ function MessPage() {
     if (socketConnection && userId) {
       socketConnection.emit('unblock_user', { userIdToUnblock: userId });
     }
+  };
+
+  // Update MessageStatus component to use messageStatuses and timestamps
+  const MessageStatus = ({ messageId, createdAt, message }) => {
+    const status = messageStatuses[messageId] || message.status || 'sent';
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-slate-300">
+          {moment(message.sentAt || createdAt).format("hh:mm A")}
+        </span>
+        {status === 'sent' && (
+          <BsCheck className="text-slate-300" title="Sent" />
+        )}
+        {status === 'delivered' && (
+          <BsCheckAll 
+            className="text-slate-300" 
+            title={`Delivered ${message.deliveredAt ? moment(message.deliveredAt).format('MMM D, h:mm A') : ''}`}
+          />
+        )}
+        {status === 'seen' && (
+          <BsCheckAll 
+            className="text-blue-500" 
+            title={`Seen ${message.seenAt ? moment(message.seenAt).format('MMM D, h:mm A') : ''}`}
+          />
+        )}
+      </div>
+    );
   };
 
   return (
@@ -432,14 +589,18 @@ function MessPage() {
                           <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
                             <img
                               src={msg.imageUrl}
-                              className=" object-cover h-[320px]"
+                              className="object-cover h-[320px]"
                               alt=""
                             />
                           </a>
                           <p className="text-lg break-words mt-2">{msg.text}</p>
-                          <p className="text-xs mt-2 text-slate-300">
-                            {moment(msg.createdAt).format("hh:mm A")}
-                          </p>
+                          {user?._id === msg.msgByUserId && (
+                            <MessageStatus 
+                              messageId={msg._id} 
+                              createdAt={msg.createdAt}
+                              message={msg} 
+                            />
+                          )}
                         </div>
                       ) : msg.videoUrl ? (
                         <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
@@ -450,18 +611,28 @@ function MessPage() {
                           >
                           </video>
                           <p className="text-lg break-words mt-2">{msg.text}</p>
-                          <p className="text-xs text-slate-300">
-                            {moment(msg.createdAt).format("hh:mm A")}
-                          </p>
+                          {user?._id === msg.msgByUserId && (
+                            <MessageStatus 
+                              messageId={msg._id} 
+                              createdAt={msg.createdAt}
+                              message={msg} 
+                            />
+                          )}
                         </div>
                       ) : (
-                        <div className="flex justify-between w-full">
-                          <p className="text-lg break-words flex-grow pr-6">
-                            {msg.text}
-                          </p>
-                          <p className="text-xs ml-4 self-end text-slate-300">
-                            {moment(msg.createdAt).format("hh:mm A")}
-                          </p>
+                        <div className="flex justify-between items-end w-full gap-2">
+                          <p className="text-lg break-words">{msg.text}</p>
+                          {user?._id === msg.msgByUserId ? (
+                            <MessageStatus 
+                              messageId={msg._id} 
+                              createdAt={msg.createdAt}
+                              message={msg} 
+                            />
+                          ) : (
+                            <span className="text-xs text-slate-300">
+                              {moment(msg.createdAt).format("hh:mm A")}
+                            </span>
+                          )}
                         </div>
                       )
                     ) : null}
