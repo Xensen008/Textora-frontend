@@ -511,6 +511,12 @@ function MessPage() {
     }
   };
 
+  // Add function to check if message is within 15 minutes
+  const isMessageDeletable = (messageTime) => {
+    const timeDifference = moment().diff(moment(messageTime), 'minutes');
+    return timeDifference <= 15;
+  };
+
   // Add this component for the date header
   const DateHeader = ({ date }) => (
     <div className="flex justify-center my-4">
@@ -670,11 +676,11 @@ function MessPage() {
                                 : "bg-[#323131] text-[#fffefe]"
                           }`}
                         >
-                          {!msg.deleted && user?._id === msg.msgByUserId && (
+                          {!msg.deleted && user?._id === msg.msgByUserId && isMessageDeletable(msg.sentAt || msg.createdAt) && (
                             <button
                               onClick={() => handleDeleteMessage(msg)}
                               className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-red-500 hover:bg-opacity-20"
-                              title="Delete message"
+                              title="Delete message (available for 15 minutes)"
                             >
                               <FaTrash className="text-red-500 w-3 h-3" />
                             </button>
