@@ -494,6 +494,32 @@ function MessPage() {
     );
   };
 
+  // Add this helper function at the top of the file, after imports
+  const getMessageDateGroup = (date) => {
+    const today = moment().startOf('day');
+    const messageDate = moment(date).startOf('day');
+    const yesterday = moment().subtract(1, 'days').startOf('day');
+    
+    if (messageDate.isSame(today)) {
+      return 'Today';
+    } else if (messageDate.isSame(yesterday)) {
+      return 'Yesterday';
+    } else if (messageDate.isSame(today, 'year')) {
+      return messageDate.format('dddd, MMMM D'); // e.g. "Monday, June 1"
+    } else {
+      return messageDate.format('dddd, MMMM D, YYYY'); // e.g. "Monday, June 1, 2023"
+    }
+  };
+
+  // Add this component for the date header
+  const DateHeader = ({ date }) => (
+    <div className="flex justify-center my-4">
+      <div className="bg-[#202c33] text-[#8696a0] text-xs px-4 py-2 rounded-lg">
+        {date}
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative">
       <div
@@ -612,95 +638,113 @@ function MessPage() {
           ) : (
             <div className="flex flex-col gap-2 py-3 lg:mx-5 mx-2" ref={currentMessage}>
               {!isBlocked && Array.isArray(allMessage) && allMessage.length > 0 ? (
-                allMessage.map((msg, index) => (
-                  <div
-                    key={msg._id || index}
-                    className={`flex ${
-                      user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`relative group ${
-                        msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
-                      } items-center gap-4 py-2 px-4 rounded-lg shadow-lg ${
-                        msg.deleted 
-                          ? "bg-gray-700 bg-opacity-50" 
-                          : user?._id === msg.msgByUserId
-                            ? "bg-[#074d40] text-[#fdfcfc]"
-                            : "bg-[#323131] text-[#fffefe]"
-                      }`}
-                    >
-                      {!msg.deleted && user?._id === msg.msgByUserId && (
-                        <button
-                          onClick={() => handleDeleteMessage(msg)}
-                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-red-500 hover:bg-opacity-20"
-                          title="Delete message"
+                <>
+                  {allMessage.reduce((groups, msg, index) => {
+                    const messageDate = moment(msg.sentAt || msg.createdAt).startOf('day').valueOf();
+                    
+                    // If this is the first message or the date is different from the previous message
+                    if (index === 0 || messageDate !== moment(allMessage[index - 1].sentAt || allMessage[index - 1].createdAt).startOf('day').valueOf()) {
+                      groups.push(
+                        <DateHeader 
+                          key={`date-${messageDate}`} 
+                          date={getMessageDateGroup(msg.sentAt || msg.createdAt)} 
+                        />
+                      );
+                    }
+                    
+                    groups.push(
+                      <div
+                        key={msg._id || index}
+                        className={`flex ${
+                          user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`relative group ${
+                            msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
+                          } items-center gap-4 py-2 px-4 rounded-lg shadow-lg ${
+                            msg.deleted 
+                              ? "bg-gray-700 bg-opacity-50" 
+                              : user?._id === msg.msgByUserId
+                                ? "bg-[#074d40] text-[#fdfcfc]"
+                                : "bg-[#323131] text-[#fffefe]"
+                          }`}
                         >
-                          <FaTrash className="text-red-500 w-3 h-3" />
-                        </button>
-                      )}
-                      
-                      {msg.deleted && msg.msgByUserId !== user?._id ? (
-                        <div className="flex items-center gap-2 text-gray-400 italic">
-                          <FaTrash className="w-3 h-3" />
-                          <span className="text-sm">Message was deleted</span>
-                        </div>
-                      ) : !msg.deleted ? (
-                        msg.imageUrl ? (
-                          <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
-                            <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
-                              <img
-                                src={msg.imageUrl}
-                                className="object-cover h-[320px]"
-                                alt=""
-                              />
-                            </a>
-                            <p className="text-lg break-words mt-2">{msg.text}</p>
-                            {user?._id === msg.msgByUserId && (
-                              <MessageStatus 
-                                messageId={msg._id} 
-                                createdAt={msg.createdAt}
-                                message={msg} 
-                              />
-                            )}
-                          </div>
-                        ) : msg.videoUrl ? (
-                          <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
-                            <video
-                              controls
-                              className="w-[250px] h-auto m-0" 
-                              src={msg.videoUrl}
+                          {!msg.deleted && user?._id === msg.msgByUserId && (
+                            <button
+                              onClick={() => handleDeleteMessage(msg)}
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-red-500 hover:bg-opacity-20"
+                              title="Delete message"
                             >
-                            </video>
-                            <p className="text-lg break-words mt-2">{msg.text}</p>
-                            {user?._id === msg.msgByUserId && (
-                              <MessageStatus 
-                                messageId={msg._id} 
-                                createdAt={msg.createdAt}
-                                message={msg} 
-                              />
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex justify-between items-end w-full gap-2">
-                            <p className="text-lg break-words">{msg.text}</p>
-                            {user?._id === msg.msgByUserId ? (
-                              <MessageStatus 
-                                messageId={msg._id} 
-                                createdAt={msg.createdAt}
-                                message={msg} 
-                              />
+                              <FaTrash className="text-red-500 w-3 h-3" />
+                            </button>
+                          )}
+                          
+                          {msg.deleted && msg.msgByUserId !== user?._id ? (
+                            <div className="flex items-center gap-2 text-gray-400 italic">
+                              <FaTrash className="w-3 h-3" />
+                              <span className="text-sm">Message was deleted</span>
+                            </div>
+                          ) : !msg.deleted ? (
+                            msg.imageUrl ? (
+                              <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
+                                <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                                  <img
+                                    src={msg.imageUrl}
+                                    className="object-cover h-[320px]"
+                                    alt=""
+                                  />
+                                </a>
+                                <p className="text-lg break-words mt-2">{msg.text}</p>
+                                {user?._id === msg.msgByUserId && (
+                                  <MessageStatus 
+                                    messageId={msg._id} 
+                                    createdAt={msg.createdAt}
+                                    message={msg} 
+                                  />
+                                )}
+                              </div>
+                            ) : msg.videoUrl ? (
+                              <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
+                                <video
+                                  controls
+                                  className="w-[250px] h-auto m-0" 
+                                  src={msg.videoUrl}
+                                >
+                                </video>
+                                <p className="text-lg break-words mt-2">{msg.text}</p>
+                                {user?._id === msg.msgByUserId && (
+                                  <MessageStatus 
+                                    messageId={msg._id} 
+                                    createdAt={msg.createdAt}
+                                    message={msg} 
+                                  />
+                                )}
+                              </div>
                             ) : (
-                              <span className="text-xs text-slate-300">
-                                {moment(msg.createdAt).format("hh:mm A")}
-                              </span>
-                            )}
-                          </div>
-                        )
-                      ) : null}
-                    </div>
-                  </div>
-                ))
+                              <div className="flex justify-between items-end w-full gap-2">
+                                <p className="text-lg break-words">{msg.text}</p>
+                                {user?._id === msg.msgByUserId ? (
+                                  <MessageStatus 
+                                    messageId={msg._id} 
+                                    createdAt={msg.createdAt}
+                                    message={msg} 
+                                  />
+                                ) : (
+                                  <span className="text-xs text-slate-300">
+                                    {moment(msg.createdAt).format("hh:mm A")}
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                    
+                    return groups;
+                  }, [])}
+                </>
               ) : (
                 <div className="text-center text-gray-400 py-4">
                   {isBlocked ? 'Messages are hidden while this user is blocked.' : 'No messages yet. Start a conversation!'}
