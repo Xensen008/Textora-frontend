@@ -32,8 +32,13 @@ function SidebarUser() {
   }
   useEffect(() => {
     if (socketConnection) {
+      const requestConversations = () => {
+        console.log("Requesting initial conversations");
+        socketConnection.emit("get-conversations");
+      };
+
       // Initial load of conversations
-      socketConnection.emit("get-conversations");
+      requestConversations();
 
       // Handle conversation updates
       socketConnection.on("conversations", (data) => {
@@ -64,8 +69,15 @@ function SidebarUser() {
         }
       });
 
+      // Handle socket reconnection
+      socketConnection.on("connect", () => {
+        console.log("Socket reconnected, requesting conversations");
+        requestConversations();
+      });
+
       // Handle online status updates
       socketConnection.on("onlineUser", (onlineUsers) => {
+        console.log("Received online users update:", onlineUsers);
         setAllUsers(prevUsers => 
           prevUsers.map(user => ({
             ...user,
@@ -76,19 +88,21 @@ function SidebarUser() {
           }))
         );
       });
-    }
 
-    return () => {
-      if (socketConnection) {
-        socketConnection.off("conversations");
-        socketConnection.off("onlineUser");
-      }
-    };
-  }, [socketConnection, user]);
+      return () => {
+        if (socketConnection) {
+          socketConnection.off("conversations");
+          socketConnection.off("onlineUser");
+          socketConnection.off("connect");
+        }
+      };
+    }
+  }, [socketConnection, user?._id]);
 
   // Update conversation list when route changes
   useEffect(() => {
     if (socketConnection && user?._id) {
+      console.log("Route changed, requesting conversations again");
       socketConnection.emit("get-conversations");
     }
   }, [location.pathname, socketConnection, user?._id]);

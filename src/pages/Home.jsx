@@ -110,44 +110,28 @@ function Home() {
           retryCount = 0;
           
           // Request initial conversations and online users after successful connection
-          socket.emit("get-conversations");
-          socket.emit("get-online-users");
+          setTimeout(() => {
+            if (socket.connected) {
+              console.log("Requesting initial data after connection");
+              socket.emit("get-conversations");
+              socket.emit("get-online-users");
+            }
+          }, 500); // Small delay to ensure connection is stable
         });
 
         socket.on("connect_error", (error) => {
-          console.error("Socket connection error:", error.message);
+          console.error("Socket connection error:", error);
           retryCount++;
-          
           if (retryCount >= maxRetries) {
-            toast.error("Unable to connect to chat server. Please try refreshing the page.");
-            return;
+            toast.error("Failed to connect to chat server. Please refresh the page.");
           }
-          
-          console.log(`Retrying connection... Attempt ${retryCount}/${maxRetries}`);
-          toast.error(`Connection failed. Retrying... (${retryCount}/${maxRetries})`);
-          
-          // Force a reconnection
-          setTimeout(() => {
-            socket.connect();
-          }, retryDelay);
         });
 
         socket.on("disconnect", (reason) => {
           console.log("Socket disconnected:", reason);
-          dispatch(setSocketConnection(null));
-          
-          if (reason === "io server disconnect" || reason === "transport close") {
-            console.log("Attempting to reconnect...");
-            setTimeout(() => {
-              socket.connect();
-            }, retryDelay);
-          }
-        });
-
-        socket.on("onlineUser", (data) => {
-          console.log("Online users updated:", data);
-          if (Array.isArray(data)) {
-            dispatch(setOnlineUser(data));
+          if (reason === "io server disconnect") {
+            // Reconnect if server disconnected us
+            socket.connect();
           }
         });
 
