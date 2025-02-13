@@ -49,6 +49,9 @@ function MessPage() {
   // Add new state for message statuses
   const [messageStatuses, setMessageStatuses] = useState({});
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
   useEffect(() => {
     if (currentMessage.current) {
       currentMessage.current.scrollIntoView({
@@ -130,41 +133,82 @@ function MessPage() {
   };
 
   useEffect(() => {
+    if (socketConnection && userId) {
+      setIsLoading(true);
+      setLoadError(null);
+      
+      // Only emit message-page event if we have a valid connection and userId
+      const loadTimeout = setTimeout(() => {
+        socketConnection.emit("message-page", userId);
+      }, 100); // Small delay to prevent rapid re-emissions
+
+      return () => {
+        clearTimeout(loadTimeout);
+      };
+    }
+  }, [userId, socketConnection]); // Remove retryCount dependency
+
+  useEffect(() => {
     if (socketConnection) {
       // Clean up previous listeners first
-      socketConnection.off("message-user");
-      socketConnection.off("message");
-      socketConnection.off("new_message");
-      socketConnection.off("error");
-      socketConnection.off("delete_success");
-      socketConnection.off("message_status_update");
-      socketConnection.off("force_message_update");
-      socketConnection.off('block_success');
-      socketConnection.off('unblock_success');
+      const cleanupListeners = () => {
+        socketConnection.off("message-user");
+        socketConnection.off("message");
+        socketConnection.off("new_message");
+        socketConnection.off("error");
+        socketConnection.off("delete_success");
+        socketConnection.off("message_status_update");
+        socketConnection.off("messages_seen_batch");
+        socketConnection.off("force_message_update");
+        socketConnection.off('block_success');
+        socketConnection.off('unblock_success');
+      };
+
+      cleanupListeners();
       
-      socketConnection.emit("leave-conversation");
-      socketConnection.emit("message-page", userId);
-  
       socketConnection.on("message-user", (data) => {
-        setDataUser(data.user);
-        setCurrentConversation(data.conversationId);
-        setIsBlocked(data.user.isBlocked);
-        
-        if (data.user.isBlocked) {
-          setAllMessage([]);
-          setMessageStatuses({});
+        if (data.user._id === userId) { // Only update if it's for the current chat
+          setDataUser(data.user);
+          setCurrentConversation(data.conversationId);
+          setIsBlocked(data.user.isBlocked);
+          setIsLoading(false);
+          
+          if (data.user.isBlocked) {
+            setAllMessage([]);
+            setMessageStatuses({});
+          }
         }
       });
 
-      // Handle new messages
+      // Handle messages seen in batch
+      socketConnection.on("messages_seen_batch", ({ messageIds, seenAt }) => {
+        setMessageStatuses(prev => {
+          const newStatuses = { ...prev };
+          messageIds.forEach(messageId => {
+            newStatuses[messageId] = 'seen';
+          });
+          return newStatuses;
+        });
+
+        setAllMessage(prevMessages => 
+          prevMessages.map(msg => 
+            messageIds.includes(msg._id) 
+              ? { ...msg, status: 'seen', seenAt, seen: true }
+              : msg
+          )
+        );
+      });
+
+      // Handle new messages with immediate status updates
       socketConnection.on("new_message", (data) => {
         if (data && Array.isArray(data.messages) && data.messages.length > 0) {
           const newMessage = data.messages[0];
           
           if (!isBlocked && (!currentConversation || data.conversationId === currentConversation)) {
+            // Update status immediately
             setMessageStatuses(prev => ({
               ...prev,
-              [newMessage._id]: newMessage.status
+              [newMessage._id]: newMessage.status || 'sent'
             }));
 
             setAllMessage(prev => {
@@ -177,20 +221,11 @@ function MessPage() {
               
               // If this is a temporary message
               if (data.isTemp) {
-                // Check if we already have this temp message
-                if (prev.some(msg => msg._id === newMessage._id)) {
-                  return prev;
-                }
                 return [...prev, newMessage];
               }
               
               // If this is a new message from another user
               if (newMessage.msgByUserId !== user?._id) {
-                // Check for duplicates
-                if (prev.some(msg => msg._id === newMessage._id)) {
-                  return prev;
-                }
-                
                 // Mark as seen immediately
                 if (socketConnection && data.conversationId) {
                   socketConnection.emit('message_seen', {
@@ -201,7 +236,7 @@ function MessPage() {
                 return [...prev, newMessage];
               }
               
-              // For regular messages, check for duplicates
+              // For regular messages
               if (!prev.some(msg => msg._id === newMessage._id)) {
                 return [...prev, newMessage];
               }
@@ -343,22 +378,9 @@ function MessPage() {
           setShowMenu(false);
         }
       });
-    }
 
-    return () => {
-      if (socketConnection) {
-        socketConnection.emit("leave-conversation");
-        socketConnection.off("message-user");
-        socketConnection.off("message");
-        socketConnection.off("new_message");
-        socketConnection.off("error");
-        socketConnection.off("delete_success");
-        socketConnection.off("message_status_update");
-        socketConnection.off("force_message_update");
-        socketConnection.off('block_success');
-        socketConnection.off('unblock_success');
-      }
-    };
+      return cleanupListeners;
+    }
   }, [socketConnection, userId, currentConversation, user?._id, isBlocked]);
 
   // Helper function to determine status priority
@@ -488,25 +510,39 @@ function MessPage() {
               <Link className="lg:hidden" to={"/"}>
                 <FaAngleLeft size={25} />
               </Link>
-              <Avatar
-                width={50}
-                height={50}
-                imageUrl={dataUser?.profile_pic}
-                name={dataUser?.name}
-                userId={dataUser?._id}
-              />
-              <div>
-                <h3 className="font-semibold text-lg text-ellipsis line-clamp-1">
-                  {dataUser?.name}
-                </h3>
-                <p className="text-sm font-semibold">
-                  {Array.isArray(onlineUsers) && onlineUsers.includes(dataUser?._id) ? (
-                    <span className="text-green-600">Online</span>
-                  ) : (
-                    <span className="text-gray-300">Offline</span>
-                  )}
-                </p>
-              </div>
+              {isLoading ? (
+                <div className="animate-pulse flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gray-600 rounded-full"></div>
+                  <div>
+                    <div className="h-4 w-24 bg-gray-600 rounded"></div>
+                    <div className="h-3 w-16 bg-gray-600 rounded mt-2"></div>
+                  </div>
+                </div>
+              ) : loadError ? (
+                <div className="text-red-400">{loadError}</div>
+              ) : (
+                <>
+                  <Avatar
+                    width={50}
+                    height={50}
+                    imageUrl={dataUser?.profile_pic}
+                    name={dataUser?.name}
+                    userId={dataUser?._id}
+                  />
+                  <div>
+                    <h3 className="font-semibold text-lg text-ellipsis line-clamp-1">
+                      {dataUser?.name}
+                    </h3>
+                    <p className="text-sm font-semibold">
+                      {Array.isArray(onlineUsers) && onlineUsers.includes(dataUser?._id) ? (
+                        <span className="text-green-600">Online</span>
+                      ) : (
+                        <span className="text-gray-300">Offline</span>
+                      )}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
             <div className="relative">
               <button 
@@ -548,103 +584,130 @@ function MessPage() {
         )}
 
         <section className={`${getMessageSectionHeight()} overflow-x-hidden overflow-y-scroll scrollbar flex-grow`}>
-          <div className="flex flex-col gap-2 py-3 lg:mx-5 mx-2" ref={currentMessage}>
-            {!isBlocked && Array.isArray(allMessage) && allMessage.length > 0 ? (
-              allMessage.map((msg, index) => (
-                <div
-                  key={msg._id || index}
-                  className={`flex ${
-                    user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
-                  }`}
-                >
+          {isLoading ? (
+            <div className="flex flex-col gap-4 p-4">
+              <div className="animate-pulse flex flex-col gap-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex justify-start">
+                    <div className="bg-gray-600 h-10 w-48 rounded-lg"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center h-full">
+              <p className="text-red-400 mb-4">{loadError}</p>
+              <button
+                onClick={() => {
+                  setLoadError(null);
+                  if (socketConnection) {
+                    socketConnection.emit("message-page", userId);
+                  }
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 py-3 lg:mx-5 mx-2" ref={currentMessage}>
+              {!isBlocked && Array.isArray(allMessage) && allMessage.length > 0 ? (
+                allMessage.map((msg, index) => (
                   <div
-                    className={`relative group ${
-                      msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
-                    } items-center gap-4 py-2 px-4 rounded-lg shadow-lg ${
-                      msg.deleted 
-                        ? "bg-gray-700 bg-opacity-50" 
-                        : user?._id === msg.msgByUserId
-                          ? "bg-[#074d40] text-[#fdfcfc]"
-                          : "bg-[#323131] text-[#fffefe]"
+                    key={msg._id || index}
+                    className={`flex ${
+                      user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
                     }`}
                   >
-                    {!msg.deleted && user?._id === msg.msgByUserId && (
-                      <button
-                        onClick={() => handleDeleteMessage(msg)}
-                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-red-500 hover:bg-opacity-20"
-                        title="Delete message"
-                      >
-                        <FaTrash className="text-red-500 w-3 h-3" />
-                      </button>
-                    )}
-                    
-                    {msg.deleted && msg.msgByUserId !== user?._id ? (
-                      <div className="flex items-center gap-2 text-gray-400 italic">
-                        <FaTrash className="w-3 h-3" />
-                        <span className="text-sm">Message was deleted</span>
-                      </div>
-                    ) : !msg.deleted ? (
-                      msg.imageUrl ? (
-                        <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
-                          <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
-                            <img
-                              src={msg.imageUrl}
-                              className="object-cover h-[320px]"
-                              alt=""
-                            />
-                          </a>
-                          <p className="text-lg break-words mt-2">{msg.text}</p>
-                          {user?._id === msg.msgByUserId && (
-                            <MessageStatus 
-                              messageId={msg._id} 
-                              createdAt={msg.createdAt}
-                              message={msg} 
-                            />
-                          )}
+                    <div
+                      className={`relative group ${
+                        msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
+                      } items-center gap-4 py-2 px-4 rounded-lg shadow-lg ${
+                        msg.deleted 
+                          ? "bg-gray-700 bg-opacity-50" 
+                          : user?._id === msg.msgByUserId
+                            ? "bg-[#074d40] text-[#fdfcfc]"
+                            : "bg-[#323131] text-[#fffefe]"
+                      }`}
+                    >
+                      {!msg.deleted && user?._id === msg.msgByUserId && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg)}
+                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-red-500 hover:bg-opacity-20"
+                          title="Delete message"
+                        >
+                          <FaTrash className="text-red-500 w-3 h-3" />
+                        </button>
+                      )}
+                      
+                      {msg.deleted && msg.msgByUserId !== user?._id ? (
+                        <div className="flex items-center gap-2 text-gray-400 italic">
+                          <FaTrash className="w-3 h-3" />
+                          <span className="text-sm">Message was deleted</span>
                         </div>
-                      ) : msg.videoUrl ? (
-                        <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
-                          <video
-                            controls
-                            className="w-[250px] h-auto m-0" 
-                            src={msg.videoUrl}
-                          >
-                          </video>
-                          <p className="text-lg break-words mt-2">{msg.text}</p>
-                          {user?._id === msg.msgByUserId && (
-                            <MessageStatus 
-                              messageId={msg._id} 
-                              createdAt={msg.createdAt}
-                              message={msg} 
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex justify-between items-end w-full gap-2">
-                          <p className="text-lg break-words">{msg.text}</p>
-                          {user?._id === msg.msgByUserId ? (
-                            <MessageStatus 
-                              messageId={msg._id} 
-                              createdAt={msg.createdAt}
-                              message={msg} 
-                            />
-                          ) : (
-                            <span className="text-xs text-slate-300">
-                              {moment(msg.createdAt).format("hh:mm A")}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    ) : null}
+                      ) : !msg.deleted ? (
+                        msg.imageUrl ? (
+                          <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
+                            <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={msg.imageUrl}
+                                className="object-cover h-[320px]"
+                                alt=""
+                              />
+                            </a>
+                            <p className="text-lg break-words mt-2">{msg.text}</p>
+                            {user?._id === msg.msgByUserId && (
+                              <MessageStatus 
+                                messageId={msg._id} 
+                                createdAt={msg.createdAt}
+                                message={msg} 
+                              />
+                            )}
+                          </div>
+                        ) : msg.videoUrl ? (
+                          <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
+                            <video
+                              controls
+                              className="w-[250px] h-auto m-0" 
+                              src={msg.videoUrl}
+                            >
+                            </video>
+                            <p className="text-lg break-words mt-2">{msg.text}</p>
+                            {user?._id === msg.msgByUserId && (
+                              <MessageStatus 
+                                messageId={msg._id} 
+                                createdAt={msg.createdAt}
+                                message={msg} 
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex justify-between items-end w-full gap-2">
+                            <p className="text-lg break-words">{msg.text}</p>
+                            {user?._id === msg.msgByUserId ? (
+                              <MessageStatus 
+                                messageId={msg._id} 
+                                createdAt={msg.createdAt}
+                                message={msg} 
+                              />
+                            ) : (
+                              <span className="text-xs text-slate-300">
+                                {moment(msg.createdAt).format("hh:mm A")}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      ) : null}
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center text-gray-400 py-4">
+                  {isBlocked ? 'Messages are hidden while this user is blocked.' : 'No messages yet. Start a conversation!'}
                 </div>
-              ))
-            ) : (
-              <div className="text-center text-gray-400 py-4">
-                {isBlocked ? 'Messages are hidden while this user is blocked.' : 'No messages yet. Start a conversation!'}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {message?.imageUrl && (
             <div className="w-full h-full sticky bottom-0 bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
