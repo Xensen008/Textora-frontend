@@ -7,6 +7,7 @@ import { FaAngleLeft, FaTrash, FaBan, FaUnlock, FaPen } from "react-icons/fa6";
 import { FaCirclePlus } from "react-icons/fa6";
 import { FaImage } from "react-icons/fa6";
 import { FaVideo } from "react-icons/fa6";
+import { FaSearch, FaArrowUp, FaArrowDown, FaTimes } from "react-icons/fa";
 import uploadFile from "../utils/uploadFile";
 import { IoClose } from "react-icons/io5";
 import { toast } from "react-hot-toast";
@@ -55,14 +56,20 @@ function MessPage() {
   const [messageToEdit, setMessageToEdit] = useState(null);
   const [editText, setEditText] = useState("");
 
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
+  const [exactWordMatch, setExactWordMatch] = useState(true);
+
   useEffect(() => {
-    if (currentMessage.current) {
+    if (currentMessage.current && !showSearch) {  // Only auto-scroll when not searching
       currentMessage.current.scrollIntoView({
         behavior: "smooth",
         block: "end",
       });
     }
-  }, [allMessage]);
+  }, [allMessage, showSearch]);
 
   // Update message statuses when messages change
   useEffect(() => {
@@ -588,108 +595,244 @@ function MessPage() {
     }
   }, [socketConnection]);
 
-  // Update message rendering to include edit button and edited indicator
-  const MessageContent = ({ msg }) => (
-    <>
-      {!msg.deleted && user?._id === msg.msgByUserId && (isMessageEditable(msg.sentAt || msg.createdAt) || isMessageDeletable(msg.sentAt || msg.createdAt)) && (
-        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
-          {isMessageEditable(msg.sentAt || msg.createdAt) && (
-            <button
-              onClick={() => handleEditMessage(msg)}
-              className="p-1 rounded-full hover:bg-blue-500 hover:bg-opacity-20"
-              title="Edit message (available for 15 minutes)"
-            >
-              <FaPen className="text-blue-500 w-3 h-3" />
-            </button>
-          )}
-          {isMessageDeletable(msg.sentAt || msg.createdAt) && (
-            <button
-              onClick={() => handleDeleteMessage(msg)}
-              className="p-1 rounded-full hover:bg-red-500 hover:bg-opacity-20"
-              title="Delete message (available for 15 minutes)"
-            >
-              <FaTrash className="text-red-500 w-3 h-3" />
-            </button>
-          )}
-        </div>
-      )}
+  // Add search functionality
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      // Sort results by their position in the chat (from oldest to newest)
+      const results = allMessage.reduce((matches, msg, index) => {
+        if (msg.text) {
+          const text = msg.text.toLowerCase();
+          const searchTerm = searchQuery.toLowerCase();
+          
+          let isMatch = false;
+          if (exactWordMatch) {
+            // Match whole words only using word boundaries
+            const wordRegex = new RegExp(`\\b${searchTerm}\\b`, 'i');
+            isMatch = wordRegex.test(text);
+          } else {
+            // Match any occurrence of the search term
+            isMatch = text.includes(searchTerm);
+          }
+
+          if (isMatch) {
+            matches.push({
+              index,
+              timestamp: msg.sentAt || msg.createdAt
+            });
+          }
+        }
+        return matches;
+      }, []);
+
+      // Sort results by timestamp to maintain chronological order
+      results.sort((a, b) => moment(a.timestamp).valueOf() - moment(b.timestamp).valueOf());
       
-      {msg.deleted && msg.msgByUserId !== user?._id ? (
-        <div className="flex items-center gap-2 text-gray-400 italic">
-          <FaTrash className="w-3 h-3" />
-          <span className="text-sm">Message was deleted</span>
-        </div>
-      ) : !msg.deleted ? (
-        msg.imageUrl ? (
-          <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
-            <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
-              <img
-                src={msg.imageUrl}
-                className="object-cover h-[320px] rounded-lg"
-                alt=""
-              />
-            </a>
-            <div className="mt-2">
-              <div className="flex-1">
-                <p className="text-lg break-words">{msg.text}</p>
-              </div>
-              {user?._id === msg.msgByUserId && (
-                <div className="flex justify-end mt-1">
-                  <MessageStatus 
-                    messageId={msg._id} 
-                    createdAt={msg.createdAt}
-                    message={msg} 
-                  />
-                </div>
-              )}
-            </div>
+      // Store only the indexes after sorting
+      const sortedIndexes = results.map(r => r.index);
+      
+      setSearchResults(sortedIndexes);
+      setCurrentSearchIndex(sortedIndexes.length > 0 ? 0 : -1);
+    } else {
+      setSearchResults([]);
+      setCurrentSearchIndex(-1);
+    }
+  }, [searchQuery, allMessage, exactWordMatch]);
+
+  const scrollToMessage = (index) => {
+    const messageElements = document.querySelectorAll('.message-item');
+    if (messageElements[index]) {
+      messageElements[index].scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+
+      // Add a temporary highlight effect to make it more visible
+      const element = messageElements[index];
+      element.style.transition = 'background-color 0.3s ease';
+      element.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'; // Light blue background
+      setTimeout(() => {
+        element.style.backgroundColor = 'transparent';
+      }, 1000);
+    }
+  };
+
+  const handleNextSearch = () => {
+    if (searchResults.length > 0) {
+      const nextIndex = (currentSearchIndex + 1) % searchResults.length;
+      setCurrentSearchIndex(nextIndex);
+      scrollToMessage(searchResults[nextIndex]);
+    }
+  };
+
+  const handlePreviousSearch = () => {
+    if (searchResults.length > 0) {
+      const prevIndex = currentSearchIndex <= 0 ? searchResults.length - 1 : currentSearchIndex - 1;
+      setCurrentSearchIndex(prevIndex);
+      scrollToMessage(searchResults[prevIndex]);
+    }
+  };
+
+  // Add keyboard shortcuts for search navigation
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (showSearch && searchResults.length > 0) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleNextSearch();
+        } else if (e.key === 'Enter' && e.shiftKey) {
+          e.preventDefault();
+          handlePreviousSearch();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [showSearch, searchResults, currentSearchIndex]);
+
+  // Update message rendering to include edit button and edited indicator
+  const MessageContent = ({ msg }) => {
+    const highlightText = (text) => {
+      if (!searchQuery.trim() || !text) return text;
+      
+      let parts;
+      if (exactWordMatch) {
+        // Split by word boundaries while preserving the matched words
+        const regex = new RegExp(`(\\b${searchQuery}\\b)`, 'gi');
+        parts = text.split(regex);
+      } else {
+        // Split by any occurrence of the search term
+        const regex = new RegExp(`(${searchQuery})`, 'gi');
+        parts = text.split(regex);
+      }
+
+      const messageIndex = allMessage.findIndex(m => m._id === msg._id);
+      const isCurrentResult = searchResults[currentSearchIndex] === messageIndex;
+      
+      return parts.map((part, index) => 
+        part.toLowerCase() === searchQuery.toLowerCase() ? (
+          <span 
+            key={index} 
+            className={`px-1 rounded ${
+              isCurrentResult 
+                ? "bg-blue-500 text-white font-bold" 
+                : "bg-yellow-500 text-black"
+            }`}
+          >
+            {part}
+          </span>
+        ) : part
+      );
+    };
+
+    return (
+      <>
+        {!msg.deleted && user?._id === msg.msgByUserId && (isMessageEditable(msg.sentAt || msg.createdAt) || isMessageDeletable(msg.sentAt || msg.createdAt)) && (
+          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
+            {isMessageEditable(msg.sentAt || msg.createdAt) && (
+              <button
+                onClick={() => handleEditMessage(msg)}
+                className="p-1 rounded-full hover:bg-blue-500 hover:bg-opacity-20"
+                title="Edit message (available for 15 minutes)"
+              >
+                <FaPen className="text-blue-500 w-3 h-3" />
+              </button>
+            )}
+            {isMessageDeletable(msg.sentAt || msg.createdAt) && (
+              <button
+                onClick={() => handleDeleteMessage(msg)}
+                className="p-1 rounded-full hover:bg-red-500 hover:bg-opacity-20"
+                title="Delete message (available for 15 minutes)"
+              >
+                <FaTrash className="text-red-500 w-3 h-3" />
+              </button>
+            )}
           </div>
-        ) : msg.videoUrl ? (
-          <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
-            <video
-              controls
-              className="w-[250px] h-auto m-0 rounded-lg" 
-              src={msg.videoUrl}
-            >
-            </video>
-            <div className="mt-2">
-              <div className="flex-1">
-                <p className="text-lg break-words">{msg.text}</p>
-              </div>
-              {user?._id === msg.msgByUserId && (
-                <div className="flex justify-end mt-1">
-                  <MessageStatus 
-                    messageId={msg._id} 
-                    createdAt={msg.createdAt}
-                    message={msg} 
-                  />
-                </div>
-              )}
-            </div>
+        )}
+        
+        {msg.deleted && msg.msgByUserId !== user?._id ? (
+          <div className="flex items-center gap-2 text-gray-400 italic">
+            <FaTrash className="w-3 h-3" />
+            <span className="text-sm">Message was deleted</span>
           </div>
-        ) : (
-          <div className="flex justify-between items-start w-full gap-2">
-            <div className="flex-1">
-              <p className="text-lg break-words">{msg.text}</p>
-            </div>
-            <div className="flex-shrink-0 self-end">
-              {user?._id === msg.msgByUserId ? (
-                <MessageStatus 
-                  messageId={msg._id} 
-                  createdAt={msg.createdAt}
-                  message={msg} 
+        ) : !msg.deleted ? (
+          msg.imageUrl ? (
+            <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
+              <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={msg.imageUrl}
+                  className="object-cover h-[320px] rounded-lg"
+                  alt=""
                 />
-              ) : (
-                <span className="text-xs text-slate-300">
-                  {moment(msg.createdAt).format("hh:mm A")}
-                </span>
-              )}
+              </a>
+              <div className="mt-2">
+                <div className="flex-1">
+                  <p className="text-lg break-words">
+                    {msg.text ? highlightText(msg.text) : msg.text}
+                  </p>
+                </div>
+                {user?._id === msg.msgByUserId && (
+                  <div className="flex justify-end mt-1">
+                    <MessageStatus 
+                      messageId={msg._id} 
+                      createdAt={msg.createdAt}
+                      message={msg} 
+                    />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )
-      ) : null}
-    </>
-  );
+          ) : msg.videoUrl ? (
+            <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
+              <video
+                controls
+                className="w-[250px] h-auto m-0 rounded-lg" 
+                src={msg.videoUrl}
+              >
+              </video>
+              <div className="mt-2">
+                <div className="flex-1">
+                  <p className="text-lg break-words">
+                    {msg.text ? highlightText(msg.text) : msg.text}
+                  </p>
+                </div>
+                {user?._id === msg.msgByUserId && (
+                  <div className="flex justify-end mt-1">
+                    <MessageStatus 
+                      messageId={msg._id} 
+                      createdAt={msg.createdAt}
+                      message={msg} 
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between items-start w-full gap-2">
+              <div className="flex-1">
+                <p className="text-lg break-words">
+                  {msg.text ? highlightText(msg.text) : msg.text}
+                </p>
+              </div>
+              <div className="flex-shrink-0 self-end">
+                {user?._id === msg.msgByUserId ? (
+                  <MessageStatus 
+                    messageId={msg._id} 
+                    createdAt={msg.createdAt}
+                    message={msg} 
+                  />
+                ) : (
+                  <span className="text-xs text-slate-300">
+                    {moment(msg.createdAt).format("hh:mm A")}
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        ) : null}
+      </>
+    );
+  };
 
   // Add edit message modal
   const EditMessageModal = () => (
@@ -749,75 +892,146 @@ function MessPage() {
       <div className="relative flex flex-col h-screen">
         <header className="sticky top-0 bg-[#202c33] text-white z-10">
           <div className="container mx-auto flex justify-between items-center p-2.5 rounded-lg">
-            <div className="flex items-center gap-4 lg:ml-3">
-              {" "}
-              <Link className="lg:hidden" to={"/"}>
-                <FaAngleLeft size={25} />
-              </Link>
-              {isLoading ? (
-                <div className="animate-pulse flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gray-600 rounded-full"></div>
-                  <div>
-                    <div className="h-4 w-24 bg-gray-600 rounded"></div>
-                    <div className="h-3 w-16 bg-gray-600 rounded mt-2"></div>
-                  </div>
-                </div>
-              ) : loadError ? (
-                <div className="text-red-400">{loadError}</div>
-              ) : (
-                <>
-                  <Avatar
-                    width={50}
-                    height={50}
-                    imageUrl={dataUser?.profile_pic}
-                    name={dataUser?.name}
-                    userId={dataUser?._id}
-                  />
-                  <div>
-                    <h3 className="font-semibold text-lg text-ellipsis line-clamp-1">
-                      {dataUser?.name}
-                    </h3>
-                    <p className="text-sm font-semibold">
-                      {Array.isArray(onlineUsers) && onlineUsers.includes(dataUser?._id) ? (
-                        <span className="text-green-600">Online</span>
-                      ) : (
-                        <span className="text-gray-300">Offline</span>
-                      )}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="relative">
-              <button 
-                onClick={() => setShowMenu(!showMenu)}
-                className="cursor-pointer p-2 hover:bg-[#323131] rounded-full"
-              >
-                <HiDotsVertical className="text-2xl text-gray-600" />
-              </button>
-              
-              {showMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-[#202c33] rounded-md shadow-lg z-50">
-                  {isBlocked ? (
-                    <button
-                      onClick={handleUnblockUser}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-300 hover:bg-[#323131]"
-                    >
-                      <FaUnlock className="mr-2" />
-                      Unblock User
-                    </button>
+            {!showSearch ? (
+              <>
+                <div className="flex items-center gap-4 lg:ml-3">
+                  <Link className="lg:hidden" to={"/"}>
+                    <FaAngleLeft size={25} />
+                  </Link>
+                  {isLoading ? (
+                    <div className="animate-pulse flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gray-600 rounded-full"></div>
+                      <div>
+                        <div className="h-4 w-24 bg-gray-600 rounded"></div>
+                        <div className="h-3 w-16 bg-gray-600 rounded mt-2"></div>
+                      </div>
+                    </div>
+                  ) : loadError ? (
+                    <div className="text-red-400">{loadError}</div>
                   ) : (
-                    <button
-                      onClick={handleBlockUser}
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-[#323131]"
-                    >
-                      <FaBan className="mr-2" />
-                      Block User
-                    </button>
+                    <>
+                      <Avatar
+                        width={50}
+                        height={50}
+                        imageUrl={dataUser?.profile_pic}
+                        name={dataUser?.name}
+                        userId={dataUser?._id}
+                      />
+                      <div>
+                        <h3 className="font-semibold text-lg text-ellipsis line-clamp-1">
+                          {dataUser?.name}
+                        </h3>
+                        <p className="text-sm font-semibold">
+                          {Array.isArray(onlineUsers) && onlineUsers.includes(dataUser?._id) ? (
+                            <span className="text-green-600">Online</span>
+                          ) : (
+                            <span className="text-gray-300">Offline</span>
+                          )}
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
-              )}
-            </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setShowSearch(true)}
+                    className="cursor-pointer p-2 hover:bg-[#323131] rounded-full"
+                  >
+                    <FaSearch className="text-xl text-gray-600" />
+                  </button>
+                  <div className="relative">
+                    <button 
+                      onClick={() => setShowMenu(!showMenu)}
+                      className="cursor-pointer p-2 hover:bg-[#323131] rounded-full"
+                    >
+                      <HiDotsVertical className="text-2xl text-gray-600" />
+                    </button>
+                    
+                    {showMenu && (
+                      <div className="absolute right-0 mt-2 w-48 bg-[#202c33] rounded-md shadow-lg z-50">
+                        {isBlocked ? (
+                          <button
+                            onClick={handleUnblockUser}
+                            className="flex items-center w-full px-4 py-2 text-sm text-gray-300 hover:bg-[#323131]"
+                          >
+                            <FaUnlock className="mr-2" />
+                            Unblock User
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleBlockUser}
+                            className="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-[#323131]"
+                          >
+                            <FaBan className="mr-2" />
+                            Block User
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center w-full gap-2 px-2">
+                <button 
+                  onClick={() => {
+                    setShowSearch(false);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                  }}
+                  className="p-2 hover:bg-[#323131] rounded-full"
+                >
+                  <FaTimes className="text-gray-600" />
+                </button>
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search in chat..."
+                    className="w-full bg-[#323739] text-white rounded-lg px-4 py-2 focus:outline-none"
+                    autoFocus
+                  />
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={exactWordMatch}
+                        onChange={(e) => setExactWordMatch(e.target.checked)}
+                        className="form-checkbox h-3 w-3 text-blue-500 rounded"
+                      />
+                      <span className="text-gray-400">Match whole words</span>
+                    </label>
+                    {searchResults.length > 0 && (
+                      <>
+                        <span className="text-sm text-gray-400 border-l border-gray-600 pl-4">
+                          {currentSearchIndex + 1}/{searchResults.length}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          (Press Enter ↵)
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <button 
+                  onClick={handlePreviousSearch}
+                  className="p-2 hover:bg-[#323131] rounded-full disabled:opacity-50"
+                  disabled={searchResults.length === 0}
+                  title="Previous (Shift + Enter)"
+                >
+                  <FaArrowUp className="text-gray-600" />
+                </button>
+                <button 
+                  onClick={handleNextSearch}
+                  className="p-2 hover:bg-[#323131] rounded-full disabled:opacity-50"
+                  disabled={searchResults.length === 0}
+                  title="Next (Enter)"
+                >
+                  <FaArrowDown className="text-gray-600" />
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
@@ -873,7 +1087,7 @@ function MessPage() {
                     groups.push(
                       <div
                         key={msg._id || index}
-                        className={`flex ${
+                        className={`message-item flex ${
                           user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
                         }`}
                       >
