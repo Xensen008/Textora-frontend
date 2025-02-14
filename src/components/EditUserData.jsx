@@ -157,16 +157,20 @@ function EditUserData({ onClose }) {
         <form onSubmit={handleOnSubmit} className="p-4">
           <div className="flex flex-col items-center mb-6">
             <div className="relative group cursor-pointer" onClick={handleOpenFile}>
-              <Avatar
-                width={80}
-                height={80}
-                iconColor="#fff"
-                imageUrl={data?.profile_pic}
-                name={data?.name}
-                userId={data?._id}
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                <FaCamera size={24} className="text-white" />
+              <div className="w-[80px] h-[80px] rounded-full overflow-hidden ring-4 ring-[#1e1f22] transition-transform duration-200 transform group-hover:scale-105">
+                <Avatar
+                  width={80}
+                  height={80}
+                  iconColor="#fff"
+                  imageUrl={data?.profile_pic}
+                  name={data?.name}
+                  userId={data?._id}
+                />
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200">
+                <div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-200">
+                  <FaCamera size={24} className="text-white" />
+                </div>
               </div>
               <input
                 type="file"
@@ -180,10 +184,20 @@ function EditUserData({ onClose }) {
             <button
               type="button"
               onClick={handleOpenFile}
-              className="mt-2 text-[#00a8fc] text-sm hover:underline"
+              className="mt-3 text-[#00a8fc] text-sm font-medium hover:underline flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[#00a8fc]/10 transition-colors"
               disabled={isUploading}
             >
-              Change Avatar
+              {isUploading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-[#00a8fc] border-t-transparent rounded-full animate-spin"></div>
+                  <span>Uploading...</span>
+                </div>
+              ) : (
+                <>
+                  <FaCamera size={14} />
+                  <span>Change Avatar</span>
+                </>
+              )}
             </button>
           </div>
 

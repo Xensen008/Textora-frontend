@@ -1041,7 +1041,7 @@ function MessPage() {
           </div>
         )}
 
-        <section className={`${getMessageSectionHeight()} overflow-x-hidden overflow-y-scroll scrollbar flex-grow`}>
+        <section className={`${getMessageSectionHeight()} overflow-x-hidden overflow-y-scroll scrollbar-messages flex-grow`}>
           {isLoading ? (
             <div className="flex flex-col gap-4 p-4">
               <div className="animate-pulse flex flex-col gap-2">
@@ -1119,118 +1119,168 @@ function MessPage() {
           )}
 
           {message?.imageUrl && (
-            <div className="w-full h-full sticky bottom-0 bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
-              <div>
-                <button
-                  onClick={handleImageClosePreview}
-                  className="flex items-center fixed top-3 right-3 bg-slate-700 text-white p-2 rounded-full"
-                >
-                  Close
-                  <IoClose size={20} />
-                </button>
-              </div>
-              <div className="bg-white p-3 rounded-lg">
-                <img
-                  src={message?.imageUrl}
-                  alt="Preview"
-                  className="aspect-square w-full h-full max-w-sm m-2 object-scale-down"
-                />
+            <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="relative max-w-4xl w-full">
+                <div className="absolute -top-12 right-0 flex items-center gap-2">
+                  <button
+                    onClick={handleImageClosePreview}
+                    className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all duration-200"
+                  >
+                    Close
+                    <IoClose size={20} className="inline-block ml-2" />
+                  </button>
+                </div>
+                <div className="bg-[#313338] rounded-lg overflow-hidden shadow-2xl">
+                  <div className="relative group">
+                    <img
+                      src={message?.imageUrl}
+                      alt="Preview"
+                      className="w-full h-auto object-contain max-h-[70vh]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/0 to-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </div>
+                  <div className="p-4 border-t border-[#3f4147]">
+                    <form className="flex items-center gap-4" onSubmit={handleSendMessage}>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          placeholder="Add a caption..."
+                          value={message.text}
+                          onChange={handleOnChange}
+                          className="w-full py-2.5 px-4 bg-[#383a40] text-[#dbdee1] placeholder-[#949ba4] rounded-md outline-none focus:ring-2 focus:ring-[#23a559]"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-[#23a559] hover:bg-[#1e9150] text-white font-medium rounded-md transition-colors flex items-center gap-2"
+                      >
+                        Send
+                        <IoMdSend size={18} />
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </div>
             </div>
           )}
           {message?.videoUrl && (
-            <div className="w-full h-full sticky bottom-0 bg-slate-600 bg-opacity-40 flex justify-center items-center rounded overflow-hidden">
-              <div>
-                <button
-                  onClick={handleVideoClosePreview}
-                  className="flex items-center fixed top-3 right-3 bg-slate-700 text-white p-2 rounded-full"
-                >
-                  Close
-                  <IoClose size={20} />
-                </button>
-              </div>
-              <div className="bg-white p-3 rounded-lg">
-                <video
-                  src={message?.videoUrl}
-                  alt="Preview"
-                  className="aspect-square w-full max-h-[600px] max-w-sm m-2 object-contain"
-                  controls
-                  muted
-                  autoPlay
-                />
+            <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="relative max-w-4xl w-full">
+                <div className="absolute -top-12 right-0 flex items-center gap-2">
+                  <button
+                    onClick={handleVideoClosePreview}
+                    className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all duration-200"
+                  >
+                    Close
+                    <IoClose size={20} className="inline-block ml-2" />
+                  </button>
+                </div>
+                <div className="bg-[#313338] rounded-lg overflow-hidden shadow-2xl">
+                  <div className="relative">
+                    <video
+                      src={message?.videoUrl}
+                      className="w-full h-auto max-h-[70vh]"
+                      controls
+                      autoPlay
+                      muted
+                    />
+                  </div>
+                  <div className="p-4 border-t border-[#3f4147]">
+                    <form className="flex items-center gap-4" onSubmit={handleSendMessage}>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          placeholder="Add a caption..."
+                          value={message.text}
+                          onChange={handleOnChange}
+                          className="w-full py-2.5 px-4 bg-[#383a40] text-[#dbdee1] placeholder-[#949ba4] rounded-md outline-none focus:ring-2 focus:ring-[#23a559]"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-[#23a559] hover:bg-[#1e9150] text-white font-medium rounded-md transition-colors flex items-center gap-2"
+                      >
+                        Send
+                        <IoMdSend size={18} />
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </section>
 
-        <section className="h-16 bg-[#1a2326] flex items-center px-2 mt-auto">
-          <div className="relative ">
+        <section className="h-16 bg-[#313338] flex items-center px-4">
+          <div className="relative flex-shrink-0">
             <button
               onClick={handleOpenVideoImage}
-              className={`flex justify-center items-center w-10 h-10 rounded-full ${
-                isBlocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#323131]'
+              className={`flex justify-center items-center w-9 h-9 rounded-full ${
+                isBlocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#404249] text-[#b5bac1] hover:text-[#dbdee1]'
               }`}
               disabled={isBlocked}
+              title="Attach a file"
             >
-              <FaCirclePlus size={20} className="text-[#b5c0b0]" />
+              <FaCirclePlus size={20} />
             </button>
             {openImageVideoUpload && !isBlocked && (
-              <div className="bg-[#1a2326] shadow rounded absolute bottom-14 w-36 p-2 ">
-                <form>
+              <div className="absolute bottom-full mb-2 left-0 bg-[#313338] rounded-lg shadow-xl border border-[#3f4147] w-48 p-1 z-10">
+                <form className="flex flex-col">
                   <label
                     htmlFor="image"
-                    className="flex items-center p-2 gap-3  hover:bg-[#323131] cursor-pointer"
+                    className="flex items-center gap-3 px-2 py-2 hover:bg-[#404249] rounded cursor-pointer text-[#b5bac1] hover:text-[#dbdee1]"
                   >
-                    <div className="text-[#b5c0b0]">
-                      <FaImage size={18} />
-                    </div>
-                    <p className="text-[#b5c0b0]">Image</p>
+                    <FaImage size={20} />
+                    <span>Upload Image</span>
                   </label>
                   <label
                     htmlFor="video"
-                    className="flex items-center p-2 gap-3  hover:bg-[#323131] cursor-pointer"
+                    className="flex items-center gap-3 px-2 py-2 hover:bg-[#404249] rounded cursor-pointer text-[#b5bac1] hover:text-[#dbdee1]"
                   >
-                    <div className="text-[#b5c0b0]">
-                      <FaVideo size={18} />
-                    </div>
-                    <p className="text-[#b5c0b0]">Video</p>
+                    <FaVideo size={20} />
+                    <span>Upload Video</span>
                   </label>
                   <input
                     type="file"
                     id="image"
                     onChange={handleImageUpload}
                     className="hidden"
+                    accept="image/*"
                   />
                   <input
                     type="file"
                     id="video"
                     onChange={handleVideoUpload}
                     className="hidden"
+                    accept="video/*"
                   />
                 </form>
               </div>
             )}
           </div>
 
-          <form
-            className="h-full w-full flex gap-3"
-            onSubmit={handleSendMessage}
-          >
-            <input
-              type="text"
-              placeholder={isBlocked ? "You cannot send messages while blocked" : "Type a Message..."}
-              className={`py-1 px-4 outline-none w-full h-full bg-[#131c21] text-[#FFFFFF] placeholder-[#B5C0B0] rounded-full ${
-                isBlocked ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              value={message?.text}
-              onChange={handleOnChange}
-              disabled={isBlocked}
-            />
+          <form className="flex-1 flex items-center gap-4 mx-4" onSubmit={handleSendMessage}>
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder={isBlocked ? "You cannot send messages while blocked" : "Message..."}
+                className={`w-full py-2.5 px-4 bg-[#383a40] text-[#dbdee1] placeholder-[#949ba4] rounded-md outline-none ${
+                  isBlocked ? 'opacity-50 cursor-not-allowed' : 'focus:ring-2 focus:ring-[#23a559]'
+                }`}
+                value={message?.text}
+                onChange={handleOnChange}
+                disabled={isBlocked}
+              />
+            </div>
             <button 
-              className={`cursor-pointer hover:text-[#B5C0B0] ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              type="submit"
+              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full ${
+                isBlocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#404249] text-[#b5bac1] hover:text-[#dbdee1]'
+              }`}
               disabled={isBlocked}
+              title="Send message"
             >
-              <IoMdSend size={25} className="text-[#b5c0b0]" />
+              <IoMdSend size={22} />
             </button>
           </form>
         </section>
