@@ -2,39 +2,61 @@ import React from 'react'
 import {PiUserCircle} from 'react-icons/pi'
 import { useSelector } from 'react-redux';
 
-function Avatar({ userId, name, imageUrl, width, height, iconColor = 'currentColor' }) {
+function Avatar({ userId, name, imageUrl, width, height, iconColor = '#dbdee1' }) {
     const onlineUser = useSelector((state) => state?.user?.onlineUser || []);
-    let avatarName = "";
-    if (name) {
-        const splitName = name.split(" ");
-        if (splitName.length > 1) {
-            avatarName = `${splitName[0][0]}${splitName[1][0]}`.toUpperCase();
-        } else {
-            avatarName = `${splitName[0][0]}`;
+    
+    const getInitials = (name) => {
+        if (!name) return "";
+        const words = name.split(" ");
+        if (words.length >= 2) {
+            return `${words[0][0]}${words[1][0]}`.toUpperCase();
         }
-    }
-    const bgColor = ["bg-red-200", "bg-blue-200", "bg-green-200", "bg-yellow-200", "bg-indigo-200", "bg-purple-200", "bg-pink-200"];
-    const randomNum = Math.floor(Math.random() * bgColor.length);
+        return name[0].toUpperCase();
+    };
+
+    const getRandomColor = (userId) => {
+        const colors = [
+            "#5865f2", // Discord Blurple
+            "#949cf7", // Light Purple
+            "#4f545c", // Grey
+            "#2d2f33", // Dark Grey
+            "#36393f", // Discord Dark
+        ];
+        
+        if (!userId) return colors[0];
+        const index = userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+        return colors[index];
+    };
 
     const isOnline = Array.isArray(onlineUser) && onlineUser.includes(userId);
+    const bgColor = getRandomColor(userId);
 
     return (
         <div style={{ width: width + "px", height: height + "px" }} 
-             className={`text-slate-800 overflow-hidden relative rounded-full shadow-sm text-xl font-bold transition-all duration-300 ease-in-out
-                        ${isOnline ? 'ring-[3px] ring-green-500 ring-offset-2 ring-offset-white' : ''}`}>
+             className={`relative overflow-hidden rounded-full ${
+                 isOnline ? 'ring-[3px] ring-[#23a559]' : ''
+             }`}>
             {imageUrl ? (
-                <img src={imageUrl} alt={name} width={width} height={height} className='object-cover rounded-full'/>
+                <img 
+                    src={imageUrl} 
+                    alt={name} 
+                    width={width} 
+                    height={height} 
+                    className="w-full h-full object-cover"
+                />
+            ) : name ? (
+                <div 
+                    style={{ backgroundColor: bgColor }}
+                    className="w-full h-full flex items-center justify-center text-[#dbdee1] font-medium"
+                >
+                    <span style={{ fontSize: `${Math.floor(width * 0.4)}px` }}>
+                        {getInitials(name)}
+                    </span>
+                </div>
             ) : (
-                name ? (
-                    <div style={{ width: width + "px", height: height + "px" }} 
-                         className={`flex justify-center items-center ${bgColor[randomNum]} rounded-full`}>
-                        {avatarName}
-                    </div>
-                ) : (
-                    <div className='w-fit mx-auto mb-2'>
-                        <PiUserCircle size={width} color={iconColor}/>
-                    </div>
-                )
+                <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: bgColor }}>
+                    <PiUserCircle size={Math.floor(width * 0.5)} className="text-[#dbdee1]"/>
+                </div>
             )}
         </div>
     );

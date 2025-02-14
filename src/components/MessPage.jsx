@@ -62,14 +62,73 @@ function MessPage() {
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const [exactWordMatch, setExactWordMatch] = useState(true);
 
+  // Update highlightText function to accept message parameter
+  const highlightText = (text, message) => {
+    if (!searchQuery.trim() || !text) return text;
+    
+    let parts;
+    if (exactWordMatch) {
+      // Split by word boundaries while preserving the matched words
+      const regex = new RegExp(`(\\b${searchQuery}\\b)`, 'gi');
+      parts = text.split(regex);
+    } else {
+      // Split by any occurrence of the search term
+      const regex = new RegExp(`(${searchQuery})`, 'gi');
+      parts = text.split(regex);
+    }
+
+    const messageIndex = allMessage.findIndex(m => m._id === message._id);
+    const isCurrentResult = searchResults[currentSearchIndex] === messageIndex;
+    
+    return parts.map((part, index) => 
+      part.toLowerCase() === searchQuery.toLowerCase() ? (
+        <span 
+          key={index} 
+          className={`px-1 rounded ${
+            isCurrentResult 
+              ? "bg-blue-500 text-white font-bold" 
+              : "bg-yellow-500 text-black"
+          }`}
+        >
+          {part}
+        </span>
+      ) : part
+    );
+  };
+
   useEffect(() => {
-    if (currentMessage.current && !showSearch) {  // Only auto-scroll when not searching
-      currentMessage.current.scrollIntoView({
-        behavior: "smooth",
-        block: "end",
+    if (currentMessage.current && !showSearch) {
+      // Use requestAnimationFrame for smoother scrolling
+      requestAnimationFrame(() => {
+        const lastMessage = currentMessage.current.lastElementChild;
+        if (lastMessage) {
+          lastMessage.scrollIntoView({
+            behavior: "instant", // Change to instant for immediate response
+            block: "end"
+          });
+        }
       });
     }
   }, [allMessage, showSearch]);
+
+  // Add a new effect for handling smooth scroll on message send
+  useEffect(() => {
+    const messageContainer = document.querySelector('.scrollbar-messages');
+    if (messageContainer) {
+      const observer = new MutationObserver(() => {
+        requestAnimationFrame(() => {
+          messageContainer.scrollTop = messageContainer.scrollHeight;
+        });
+      });
+
+      observer.observe(messageContainer, {
+        childList: true,
+        subtree: true
+      });
+
+      return () => observer.disconnect();
+    }
+  }, []);
 
   // Update message statuses when messages change
   useEffect(() => {
@@ -692,59 +751,26 @@ function MessPage() {
 
   // Update message rendering to include edit button and edited indicator
   const MessageContent = ({ msg }) => {
-    const highlightText = (text) => {
-      if (!searchQuery.trim() || !text) return text;
-      
-      let parts;
-      if (exactWordMatch) {
-        // Split by word boundaries while preserving the matched words
-        const regex = new RegExp(`(\\b${searchQuery}\\b)`, 'gi');
-        parts = text.split(regex);
-      } else {
-        // Split by any occurrence of the search term
-        const regex = new RegExp(`(${searchQuery})`, 'gi');
-        parts = text.split(regex);
-      }
-
-      const messageIndex = allMessage.findIndex(m => m._id === msg._id);
-      const isCurrentResult = searchResults[currentSearchIndex] === messageIndex;
-      
-      return parts.map((part, index) => 
-        part.toLowerCase() === searchQuery.toLowerCase() ? (
-          <span 
-            key={index} 
-            className={`px-1 rounded ${
-              isCurrentResult 
-                ? "bg-blue-500 text-white font-bold" 
-                : "bg-yellow-500 text-black"
-            }`}
-          >
-            {part}
-          </span>
-        ) : part
-      );
-    };
-
     return (
       <>
         {!msg.deleted && user?._id === msg.msgByUserId && (isMessageEditable(msg.sentAt || msg.createdAt) || isMessageDeletable(msg.sentAt || msg.createdAt)) && (
-          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
+          <div className="absolute top-1 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 px-2 py-1 bg-[#202c33]/90 rounded-l-lg -mr-1">
             {isMessageEditable(msg.sentAt || msg.createdAt) && (
               <button
                 onClick={() => handleEditMessage(msg)}
-                className="p-1 rounded-full hover:bg-blue-500 hover:bg-opacity-20"
+                className="p-1 rounded-full hover:bg-[#ffffff1a] transition-colors"
                 title="Edit message (available for 15 minutes)"
               >
-                <FaPen className="text-blue-500 w-3 h-3" />
+                <FaPen className="text-[#e9edef] w-3 h-3" />
               </button>
             )}
             {isMessageDeletable(msg.sentAt || msg.createdAt) && (
               <button
                 onClick={() => handleDeleteMessage(msg)}
-                className="p-1 rounded-full hover:bg-red-500 hover:bg-opacity-20"
+                className="p-1 rounded-full hover:bg-[#ffffff1a] transition-colors"
                 title="Delete message (available for 15 minutes)"
               >
-                <FaTrash className="text-red-500 w-3 h-3" />
+                <FaTrash className="text-[#e9edef] w-3 h-3" />
               </button>
             )}
           </div>
@@ -768,7 +794,7 @@ function MessPage() {
               <div className="mt-2">
                 <div className="flex-1">
                   <p className="text-lg break-words">
-                    {msg.text ? highlightText(msg.text) : msg.text}
+                    {msg.text ? highlightText(msg.text, msg) : msg.text}
                   </p>
                 </div>
                 {user?._id === msg.msgByUserId && (
@@ -793,7 +819,7 @@ function MessPage() {
               <div className="mt-2">
                 <div className="flex-1">
                   <p className="text-lg break-words">
-                    {msg.text ? highlightText(msg.text) : msg.text}
+                    {msg.text ? highlightText(msg.text, msg) : msg.text}
                   </p>
                 </div>
                 {user?._id === msg.msgByUserId && (
@@ -811,7 +837,7 @@ function MessPage() {
             <div className="flex justify-between items-start w-full gap-2">
               <div className="flex-1">
                 <p className="text-lg break-words">
-                  {msg.text ? highlightText(msg.text) : msg.text}
+                  {msg.text ? highlightText(msg.text, msg) : msg.text}
                 </p>
               </div>
               <div className="flex-shrink-0 self-end">
@@ -1084,25 +1110,168 @@ function MessPage() {
                       );
                     }
                     
+                    const shouldShowAvatar = (index) => {
+                      // Show avatar if:
+                      // 1. First message
+                      // 2. Previous message was from different user
+                      // 3. Time difference between messages is more than 10 minutes
+                      // 4. Different day from previous message
+                      if (index === 0) return true;
+                      const prevMsg = allMessage[index - 1];
+                      const currentMsg = allMessage[index];
+                      
+                      const timeDiff = moment(currentMsg.sentAt || currentMsg.createdAt).diff(
+                        moment(prevMsg.sentAt || prevMsg.createdAt),
+                        'minutes'
+                      );
+                      
+                      const isSameDay = moment(currentMsg.sentAt || currentMsg.createdAt).isSame(
+                        moment(prevMsg.sentAt || prevMsg.createdAt),
+                        'day'
+                      );
+                      
+                      return prevMsg.msgByUserId !== currentMsg.msgByUserId || 
+                             timeDiff > 10 || 
+                             !isSameDay;
+                    };
+
                     groups.push(
                       <div
                         key={msg._id || index}
-                        className={`message-item flex ${
-                          user?._id === msg.msgByUserId ? "justify-end" : "justify-start"
+                        className={`message-item flex items-start gap-2 px-3 group mb-[2px] ${
+                          user?._id === msg.msgByUserId ? "flex-row-reverse" : "flex-row"
                         }`}
                       >
-                        <div
-                          className={`relative group ${
-                            msg.imageUrl || msg.videoUrl ? "flex-col" : "flex"
-                          } items-center gap-4 py-2 px-4 rounded-lg shadow-lg ${
-                            msg.deleted 
-                              ? "bg-gray-700 bg-opacity-50" 
-                              : user?._id === msg.msgByUserId
-                                ? "bg-[#005c4b] text-[#fdfcfc]"
-                                : "bg-[#202c33] text-[#fffefe]"
-                          }`}
-                        >
-                          <MessageContent msg={msg} />
+                        {/* Avatar container with fixed width for alignment */}
+                        <div className="w-8 flex-shrink-0">
+                          {shouldShowAvatar(index) && (
+                            <Avatar
+                              width={32}
+                              height={32}
+                              imageUrl={user?._id === msg.msgByUserId ? user?.profile_pic : dataUser?.profile_pic}
+                              name={user?._id === msg.msgByUserId ? user?.name : dataUser?.name}
+                              userId={user?._id === msg.msgByUserId ? user?._id : dataUser?._id}
+                            />
+                          )}
+                        </div>
+
+                        <div className={`flex flex-col ${
+                          user?._id === msg.msgByUserId ? "items-end" : "items-start"
+                        } max-w-[75%] lg:max-w-[65%]`}>
+                          {/* Show name for first message in sequence */}
+                          {shouldShowAvatar(index) && user?._id !== msg.msgByUserId && (
+                            <span className="text-[13px] text-[#949cf7] font-medium ml-0.5 mb-0.5">
+                              {dataUser?.name}
+                            </span>
+                          )}
+                          
+                          <div
+                            className={`relative ${
+                              msg.imageUrl || msg.videoUrl ? "max-w-[420px] w-full" : "max-w-full"
+                            } ${
+                              msg.deleted 
+                                ? "bg-gray-700/50" 
+                                : user?._id === msg.msgByUserId
+                                  ? "bg-[#36393f] hover:bg-[#3c3f45]"
+                                  : "bg-[#2b2d31] hover:bg-[#313338]"
+                            } rounded-2xl ${
+                              user?._id === msg.msgByUserId 
+                                ? "rounded-tr-md" 
+                                : "rounded-tl-md"
+                            } shadow-sm transition-colors duration-200`}
+                          >
+                            {/* Message content container */}
+                            <div className="flex flex-col w-full overflow-hidden">
+                              {/* Media content */}
+                              {msg.imageUrl && (
+                                <div className="relative w-full">
+                                  <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                                    <img
+                                      src={msg.imageUrl}
+                                      className="w-full h-auto rounded-t-2xl object-cover max-h-[300px]"
+                                      alt=""
+                                    />
+                                  </a>
+                                </div>
+                              )}
+                              {msg.videoUrl && (
+                                <div className="relative w-full">
+                                  <video
+                                    controls
+                                    className="w-full h-auto rounded-t-2xl" 
+                                    src={msg.videoUrl}
+                                  >
+                                  </video>
+                                </div>
+                              )}
+                              
+                              {/* Text content */}
+                              <div className={`${
+                                msg.imageUrl || msg.videoUrl 
+                                  ? 'p-2 pt-1.5' 
+                                  : 'px-3 py-2'
+                              }`}>
+                                <div className="flex flex-col">
+                                  {msg.text && (
+                                    <div className="flex items-end gap-1.5">
+                                      <p className="text-[15px] text-[#dbdee1] leading-[21px] tracking-[0.2px] whitespace-pre-wrap break-words flex-1 min-w-0">
+                                        {msg.text ? highlightText(msg.text, msg) : msg.text}
+                                      </p>
+                                      <div className="flex items-center gap-0.5 flex-shrink-0 mb-[1px] ml-1">
+                                        <span className="text-[11px] text-[#949ba4] min-w-[42px] text-right">
+                                          {moment(msg.sentAt || msg.createdAt).format("h:mm A")}
+                                        </span>
+                                        {user?._id === msg.msgByUserId && (
+                                          <div className="text-[#949ba4] ml-0.5">
+                                            {messageStatuses[msg._id] === 'sent' && (
+                                              <BsCheck className="w-[15px] h-[15px]" title="Sent" />
+                                            )}
+                                            {messageStatuses[msg._id] === 'delivered' && (
+                                              <BsCheckAll 
+                                                className="w-[15px] h-[15px]" 
+                                                title={`Delivered ${msg.deliveredAt ? moment(msg.deliveredAt).format('MMM D, h:mm A') : ''}`}
+                                              />
+                                            )}
+                                            {messageStatuses[msg._id] === 'seen' && (
+                                              <BsCheckAll 
+                                                className="w-[15px] h-[15px] text-[#949cf7]" 
+                                                title={`Seen ${msg.seenAt ? moment(msg.seenAt).format('MMM D, h:mm A') : ''}`}
+                                              />
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Edit/Delete buttons */}
+                            {!msg.deleted && user?._id === msg.msgByUserId && 
+                             (isMessageEditable(msg.sentAt || msg.createdAt) || isMessageDeletable(msg.sentAt || msg.createdAt)) && (
+                              <div className="absolute -top-8 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 px-2 py-1 bg-[#2b2d31]/90 backdrop-blur-sm rounded-md">
+                                {isMessageEditable(msg.sentAt || msg.createdAt) && (
+                                  <button
+                                    onClick={() => handleEditMessage(msg)}
+                                    className="p-1 rounded-full hover:bg-[#ffffff1a] transition-colors"
+                                    title="Edit message (available for 15 minutes)"
+                                  >
+                                    <FaPen className="text-[#b5bac1] w-3 h-3" />
+                                  </button>
+                                )}
+                                {isMessageDeletable(msg.sentAt || msg.createdAt) && (
+                                  <button
+                                    onClick={() => handleDeleteMessage(msg)}
+                                    className="p-1 rounded-full hover:bg-[#ffffff1a] transition-colors"
+                                    title="Delete message (available for 15 minutes)"
+                                  >
+                                    <FaTrash className="text-[#b5bac1] w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
