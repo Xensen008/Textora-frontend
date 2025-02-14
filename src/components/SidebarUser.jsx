@@ -9,7 +9,7 @@ import EditUserData from "./EditUserData";
 import Divider from "./Divider";
 import { FiArrowUpLeft } from "react-icons/fi";
 import SearchUser from "./SearchUser";
-import { FaImage, FaVideo } from "react-icons/fa6";
+import { FaImage, FaVideo, FaCircle } from "react-icons/fa6";
 import { logout } from "../stores/userSlice";
 
 function SidebarUser() {
@@ -109,159 +109,147 @@ function SidebarUser() {
 
   return (
     <div className="w-full h-screen flex">
-      <div className="bg-[#111b21] w-16 h-full py-5 flex flex-col items-center justify-between">
-        <div>
+      {/* Left sidebar - Navigation */}
+      <div className="bg-[#1e1f22] w-[72px] h-full py-3 flex flex-col items-center justify-between border-r border-[#2d2d31]">
+        <div className="flex flex-col gap-2">
           <NavLink
             to="/"
-            className={(isActive) =>
-              `w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-[#202c33] rounded text-white ${
-                isActive && "bg-[#26333d]"
+            className={({ isActive }) =>
+              `w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-[#36373d] rounded-[16px] transition-all duration-200 ${
+                isActive ? "bg-[#36373d]" : "bg-[#2d2d31] hover:bg-[#36373d]"
               }`
             }
             title="Chat"
           >
-            <IoChatbubbleEllipsesOutline size={25} />
+            <IoChatbubbleEllipsesOutline size={26} className="text-[#23a559]" />
           </NavLink>
           <div
             onClick={() => setOpenSearch(true)}
-            className="w-12 h-12 flex justify-center items-center cursor-pointer mt-2 hover:bg-[#202c33] text-white rounded"
+            className="w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-[#36373d] rounded-[16px] transition-all duration-200 bg-[#2d2d31]"
             title="Add User"
           >
-            <FaUserPlus size={25} />
+            <FaUserPlus size={22} className="text-[#23a559]" />
           </div>
         </div>
 
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center gap-2">
           <button
-            className="mx-auto"
-            title={`profile- ${user?.name}`}
+            className="w-12 h-12 rounded-full overflow-visible hover:opacity-80 transition-all duration-300 relative group"
+            title={`Profile - ${user?.name}`}
             onClick={() => setEditUserOpen(true)}
           >
-            <Avatar
-              width={40}
-              height={40}
-              iconColor="#fff"
-              imageUrl={user?.profile_pic}
-              userId={user?._id}
-              name={user?.name}
-            />
+            <div className="relative">
+              <Avatar
+                width={48}
+                height={48}
+                iconColor="#fff"
+                imageUrl={user?.profile_pic}
+                userId={user?._id}
+                name={user?.name}
+              />
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-[3px] border-[#1e1f22] bg-[#23a559]"></div>
+            </div>
           </button>
           <button
-            className="w-12 h-12 flex justify-center items-center cursor-pointer mt-2 hover:bg-[#202c33] text-red-600 rounded"
+            className="w-12 h-12 flex justify-center items-center cursor-pointer hover:bg-[#36373d] rounded-[16px] transition-all duration-200 text-[#f23f42]"
             title="Logout"
             onClick={handleLogout}
           >
-            <span className="-ml-2">
-              <BiLogOut size={25} />
-            </span>
+            <BiLogOut size={26} />
           </button>
         </div>
       </div>
 
-      <div className="w-full bg-[#1e2c35] text-white">
-        <div className="flex h-16 items-center px-4 bg-[#202c33]">
-          <h2 className="text-xl font-bold">Messages</h2>
+      {/* Right sidebar - Chat list */}
+      <div className="w-full bg-[#2b2d31] text-white">
+        <div className="flex h-[48px] items-center px-4 bg-[#2b2d31] border-b border-[#1e1f22]">
+          <h2 className="text-[16px] font-semibold text-[#f3f4f5]">Direct Messages</h2>
         </div>
-        <Divider />
 
-        <div className="h-[calc(100vh-75px)] overflow-x-hidden overflow-y-auto scrollbar">
-          <div className="flex flex-col items-start gap-2 p-4">
-            {allUsers.length === 0 && (
-              <div className="w-full flex flex-col items-center justify-center mt-6 text-slate-300">
+        <div className="h-[calc(100vh-48px)] overflow-x-hidden overflow-y-auto scrollbar">
+          <div className="flex flex-col items-start p-2">
+            {allUsers.length === 0 ? (
+              <div className="w-full flex flex-col items-center justify-center mt-6 text-[#949ba4]">
                 <FiArrowUpLeft size={50} />
-                <p className="text-center text-lg font-mono">
-                  Add User to Start Conversation
+                <p className="text-center text-[15px] mt-2">
+                  Add users to start messaging
                 </p>
               </div>
-            )}
-            <div className="w-[279px] flex flex-col gap-2">
-              {allUsers.map((conv) => (
-                <Link
-                  to={`/${conv?.userDetails?._id}`}
-                  key={conv?._id}
-                  className="no-underline w-full"
-                >
-                  <div className={`flex items-center gap-2 p-3 rounded-lg transition-colors hover:bg-[#1b252c] cursor-pointer ${
-                    conv.isActive ? 'bg-[#2a3942]' : ''
-                  }`}>
-                    <Avatar
-                      imageUrl={conv?.userDetails?.profile_pic}
-                      name={conv?.userDetails?.name}
-                      width={48}
-                      height={48}
-                      userId={conv?.userDetails?._id}
-                    />
-                    <div className="flex-1 min-w-0 flex flex-col">
-                      <div className="flex justify-between items-center w-full">
-                        <h3 className="font-semibold text-base line-clamp-1 text-ellipsis mr-2">
-                          {conv?.userDetails?.name}
-                        </h3>
-                        <span
-                          className={`text-xs ${
-                            conv?.unseenMsg > 0
-                              ? "text-green-500"
-                              : "text-gray-400"
-                          }`}
-                        >
-                          {conv?.lastMsg?.createdAt &&
-                            new Date(
-                              conv.lastMsg.createdAt
-                            ).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <div className="flex items-center gap-1 text-md text-slate-400 line-clamp-1 text-ellipsis max-w-[65%]">
-                          {conv?.lastMsg?.imageUrl && (
-                            <FaImage className="mr-1 flex-shrink-0" />
-                          )}
-                          {conv?.lastMsg?.videoUrl && (
-                            <FaVideo className="mr-1 flex-shrink-0" />
-                          )}
-                          <p className="text-ellipsis overflow-hidden whitespace-nowrap">
-                            {conv?.lastMsg?.text
-                              ? conv?.lastMsg?.text.length > 30
-                                ? conv?.lastMsg?.text.substring(0, 30) + "..."
-                                : conv?.lastMsg?.text
-                              : conv?.lastMsg?.imageUrl
-                              ? "Image"
-                              : conv?.lastMsg?.videoUrl
-                              ? "Video"
-                              : ""}
-                          </p>
-                        </div>
-                        {conv?.unseenMsg > 0 && (
-                          <span className="ml-2 bg-green-600 text-white text-xs min-w-[20px] h-5 font-semibold px-1 rounded-full flex justify-center items-center">
-                            {conv?.unseenMsg}
-                          </span>
+            ) : (
+              <div className="w-full flex flex-col gap-[2px]">
+                {allUsers.map((conv) => (
+                  <Link
+                    to={`/${conv?.userDetails?._id}`}
+                    key={conv?._id}
+                    className="no-underline w-full"
+                  >
+                    <div 
+                      className={`flex items-center gap-3 px-2 py-[6px] rounded-[4px] transition-colors hover:bg-[#35373c] cursor-pointer ${
+                        conv.isActive ? 'bg-[#35373c]' : ''
+                      }`}
+                    >
+                      <div className="relative">
+                        <Avatar
+                          imageUrl={conv?.userDetails?.profile_pic}
+                          name={conv?.userDetails?.name}
+                          width={32}
+                          height={32}
+                          userId={conv?.userDetails?._id}
+                        />
+                        {conv?.userDetails?.online && (
+                          <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-[2.5px] border-[#2b2d31] bg-[#23a559]"></div>
                         )}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center w-full">
+                          <h3 className="font-medium text-[16px] text-[#f3f4f5] line-clamp-1 text-ellipsis">
+                            {conv?.userDetails?.name}
+                          </h3>
+                          <span className="text-xs text-[#949ba4]">
+                            {conv?.lastMsg?.createdAt &&
+                              new Date(conv.lastMsg.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-[2px]">
+                          <div className="flex items-center gap-1 text-[14px] text-[#949ba4] line-clamp-1 text-ellipsis max-w-[85%]">
+                            {conv?.lastMsg?.imageUrl && (
+                              <FaImage className="mr-1 flex-shrink-0 text-[12px]" />
+                            )}
+                            {conv?.lastMsg?.videoUrl && (
+                              <FaVideo className="mr-1 flex-shrink-0 text-[12px]" />
+                            )}
+                            <p className="text-ellipsis overflow-hidden whitespace-nowrap">
+                              {conv?.lastMsg?.text
+                                ? conv?.lastMsg?.text.length > 30
+                                  ? conv?.lastMsg?.text.substring(0, 30) + "..."
+                                  : conv?.lastMsg?.text
+                                : conv?.lastMsg?.imageUrl
+                                ? "Image"
+                                : conv?.lastMsg?.videoUrl
+                                ? "Video"
+                                : ""}
+                            </p>
+                          </div>
+                          {conv?.unseenMsg > 0 && (
+                            <span className="ml-2 bg-[#23a559] text-white text-[12px] min-w-[18px] h-[18px] font-medium rounded-full flex justify-center items-center">
+                              {conv?.unseenMsg}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
-      {editUserOpen && (
-        <EditUserData
-          onClose={() => {
-            setEditUserOpen(false);
-          }}
-          user={user}
-        />
-      )}
-
-      {openSearch && (
-        <SearchUser
-          onClose={() => {
-            setOpenSearch(false);
-          }}
-        />
-      )}
+      {editUserOpen && <EditUserData onClose={() => setEditUserOpen(false)} />}
+      {openSearch && <SearchUser onClose={() => setOpenSearch(false)} />}
     </div>
   );
 }
