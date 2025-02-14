@@ -16,6 +16,49 @@ import { IoMdSend } from "react-icons/io";
 import moment from "moment";
 import { BsCheck, BsCheckAll } from "react-icons/bs";
 
+// Add styles for search highlighting
+const searchHighlightStyles = `
+  .current-search-highlight {
+    animation: highlightFade 2s ease-out;
+  }
+  
+  @keyframes highlightFade {
+    0% { background-color: rgba(88, 101, 242, 0.3); }
+    100% { background-color: rgba(88, 101, 242, 0.1); }
+  }
+  
+  .message-item {
+    transition: background-color 0.2s ease-out;
+  }
+`;
+
+// Add style tag to document head
+if (!document.getElementById('search-highlight-styles')) {
+  const styleSheet = document.createElement("style");
+  styleSheet.id = 'search-highlight-styles';
+  styleSheet.textContent = searchHighlightStyles;
+  document.head.appendChild(styleSheet);
+}
+
+// Add this CSS at the top of the file with other styles
+const additionalStyles = `
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out forwards;
+  }
+`;
+
+if (!document.getElementById('additional-styles')) {
+  const styleSheet = document.createElement("style");
+  styleSheet.id = 'additional-styles';
+  styleSheet.textContent = additionalStyles;
+  document.head.appendChild(styleSheet);
+}
+
 function MessPage() {
   const { userId } = useParams();
   const user = useSelector((state) => state?.user);
@@ -62,73 +105,48 @@ function MessPage() {
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const [exactWordMatch, setExactWordMatch] = useState(true);
 
-  // Update highlightText function to accept message parameter
+  // Update scroll behavior to be more controlled
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  // Add after the existing state declarations
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const messagesEndRef = useRef(null);
+  const messageContainerRef = useRef(null);
+
+  // Update highlightText function for better visibility
   const highlightText = (text, message) => {
     if (!searchQuery.trim() || !text) return text;
     
+    const messageIndex = allMessage.indexOf(message);
+    const isCurrentResult = searchResults[currentSearchIndex] === messageIndex;
+    
     let parts;
     if (exactWordMatch) {
-      // Split by word boundaries while preserving the matched words
       const regex = new RegExp(`(\\b${searchQuery}\\b)`, 'gi');
       parts = text.split(regex);
     } else {
-      // Split by any occurrence of the search term
       const regex = new RegExp(`(${searchQuery})`, 'gi');
       parts = text.split(regex);
     }
-
-    const messageIndex = allMessage.findIndex(m => m._id === message._id);
-    const isCurrentResult = searchResults[currentSearchIndex] === messageIndex;
     
-    return parts.map((part, index) => 
-      part.toLowerCase() === searchQuery.toLowerCase() ? (
-        <span 
-          key={index} 
-          className={`px-1 rounded ${
-            isCurrentResult 
-              ? "bg-blue-500 text-white font-bold" 
-              : "bg-yellow-500 text-black"
-          }`}
-        >
-          {part}
-        </span>
-      ) : part
-    );
+    return parts.map((part, index) => {
+      if (part.toLowerCase() === searchQuery.toLowerCase()) {
+        return (
+          <span 
+            key={index} 
+            className={`px-1 rounded ${
+              isCurrentResult 
+                ? "bg-[#5865f2] text-white" 
+                : "bg-[#5865f2]/20 text-[#dbdee1]"
+            }`}
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
   };
-
-  useEffect(() => {
-    if (currentMessage.current && !showSearch) {
-      // Use requestAnimationFrame for smoother scrolling
-      requestAnimationFrame(() => {
-        const lastMessage = currentMessage.current.lastElementChild;
-        if (lastMessage) {
-          lastMessage.scrollIntoView({
-            behavior: "instant", // Change to instant for immediate response
-            block: "end"
-          });
-        }
-      });
-    }
-  }, [allMessage, showSearch]);
-
-  // Add a new effect for handling smooth scroll on message send
-  useEffect(() => {
-    const messageContainer = document.querySelector('.scrollbar-messages');
-    if (messageContainer) {
-      const observer = new MutationObserver(() => {
-        requestAnimationFrame(() => {
-          messageContainer.scrollTop = messageContainer.scrollHeight;
-        });
-      });
-
-      observer.observe(messageContainer, {
-        childList: true,
-        subtree: true
-      });
-
-      return () => observer.disconnect();
-    }
-  }, []);
 
   // Update message statuses when messages change
   useEffect(() => {
@@ -201,21 +219,31 @@ function MessPage() {
     return "h-[calc(100vh-134px)]";
   };
 
+  // Add scroll event listener
+  useEffect(() => {
+    const messageContainer = messageContainerRef.current;
+    if (messageContainer) {
+      messageContainer.addEventListener('scroll', handleScroll);
+      return () => messageContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
+
+  // Update initial load effect
   useEffect(() => {
     if (socketConnection && userId) {
-      setIsLoading(true);
+      setIsLoading(false);
       setLoadError(null);
       
-      // Only emit message-page event if we have a valid connection and userId
-      const loadTimeout = setTimeout(() => {
-        socketConnection.emit("message-page", userId);
-      }, 100); // Small delay to prevent rapid re-emissions
-
-      return () => {
-        clearTimeout(loadTimeout);
-      };
+      socketConnection.emit("message-page", userId);
+      
+      // Initial scroll to bottom with no animation
+      setTimeout(() => {
+        scrollToBottom('auto');
+        // Show scroll button initially
+        handleScroll();
+      }, 100);
     }
-  }, [userId, socketConnection]); // Remove retryCount dependency
+  }, [userId, socketConnection]);
 
   useEffect(() => {
     if (socketConnection) {
@@ -236,7 +264,7 @@ function MessPage() {
       cleanupListeners();
       
       socketConnection.on("message-user", (data) => {
-        if (data.user._id === userId) { // Only update if it's for the current chat
+        if (data.user._id === userId) {
           setDataUser(data.user);
           setCurrentConversation(data.conversationId);
           setIsBlocked(data.user.isBlocked);
@@ -502,6 +530,12 @@ function MessPage() {
         msgByUserId: user?._id,
         conversationId: currentConversation
       });
+
+      // Scroll to bottom smoothly after sending
+      requestAnimationFrame(() => {
+        scrollToBottom('smooth');
+        setShowScrollBottom(false);
+      });
     }
   };
 
@@ -654,72 +688,106 @@ function MessPage() {
     }
   }, [socketConnection]);
 
-  // Add search functionality
+  // Update search effect to be more stable and handle message updates properly
   useEffect(() => {
     if (searchQuery.trim()) {
-      // Sort results by their position in the chat (from oldest to newest)
       const results = allMessage.reduce((matches, msg, index) => {
-        if (msg.text) {
-          const text = msg.text.toLowerCase();
+        if (msg.text && !msg.deleted) {
+          const messageText = msg.text.toLowerCase();
           const searchTerm = searchQuery.toLowerCase();
           
           let isMatch = false;
           if (exactWordMatch) {
-            // Match whole words only using word boundaries
-            const wordRegex = new RegExp(`\\b${searchTerm}\\b`, 'i');
-            isMatch = wordRegex.test(text);
+            const regex = new RegExp(`\\b${searchTerm}\\b`, 'gi');
+            isMatch = regex.test(messageText);
           } else {
-            // Match any occurrence of the search term
-            isMatch = text.includes(searchTerm);
+            isMatch = messageText.includes(searchTerm);
           }
 
           if (isMatch) {
-            matches.push({
-              index,
-              timestamp: msg.sentAt || msg.createdAt
-            });
+            matches.push(index);
           }
         }
         return matches;
       }, []);
-
-      // Sort results by timestamp to maintain chronological order
-      results.sort((a, b) => moment(a.timestamp).valueOf() - moment(b.timestamp).valueOf());
       
-      // Store only the indexes after sorting
-      const sortedIndexes = results.map(r => r.index);
+      setSearchResults(results);
       
-      setSearchResults(sortedIndexes);
-      setCurrentSearchIndex(sortedIndexes.length > 0 ? 0 : -1);
+      // Only scroll to first result when search query changes, not on message updates
+      if (results.length > 0 && currentSearchIndex === -1) {
+        setCurrentSearchIndex(0);
+        requestAnimationFrame(() => {
+          scrollToMessage(0);
+        });
+      } else if (results.length === 0) {
+        setCurrentSearchIndex(-1);
+      }
     } else {
       setSearchResults([]);
       setCurrentSearchIndex(-1);
     }
-  }, [searchQuery, allMessage, exactWordMatch]);
+  }, [searchQuery, exactWordMatch]); // Remove allMessage dependency to prevent re-search on updates
 
-  const scrollToMessage = (index) => {
-    const messageElements = document.querySelectorAll('.message-item');
-    if (messageElements[index]) {
-      messageElements[index].scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
+  // Add separate effect to handle message updates
+  useEffect(() => {
+    if (searchQuery.trim() && searchResults.length > 0) {
+      const newResults = searchResults.filter(index => {
+        const msg = allMessage[index];
+        return msg && msg.text && !msg.deleted && (
+          exactWordMatch 
+            ? new RegExp(`\\b${searchQuery.toLowerCase()}\\b`, 'gi').test(msg.text.toLowerCase())
+            : msg.text.toLowerCase().includes(searchQuery.toLowerCase())
+        );
       });
 
-      // Add a temporary highlight effect to make it more visible
-      const element = messageElements[index];
-      element.style.transition = 'background-color 0.3s ease';
-      element.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'; // Light blue background
-      setTimeout(() => {
-        element.style.backgroundColor = 'transparent';
-      }, 1000);
+      if (newResults.length !== searchResults.length) {
+        setSearchResults(newResults);
+        if (newResults.length === 0) {
+          setCurrentSearchIndex(-1);
+        } else if (currentSearchIndex >= newResults.length) {
+          setCurrentSearchIndex(newResults.length - 1);
+          scrollToMessage(newResults.length - 1);
+        }
+      }
+    }
+  }, [allMessage]);
+
+  // Update scrollToMessage function to be more reliable
+  const scrollToMessage = (index) => {
+    const messageContainer = document.querySelector('.scrollbar-messages');
+    const messageElements = document.querySelectorAll('.message-item');
+    const targetMessage = messageElements[searchResults[index]];
+    
+    if (targetMessage && messageContainer) {
+      // Calculate scroll position to center the message
+      const containerHeight = messageContainer.clientHeight;
+      const messageTop = targetMessage.offsetTop;
+      const messageHeight = targetMessage.clientHeight;
+      const scrollPosition = messageTop - (containerHeight / 2) + (messageHeight / 2);
+      
+      messageContainer.scrollTo({
+        top: scrollPosition,
+        behavior: 'auto'
+      });
+
+      // Apply highlight effect
+      const currentHighlight = document.querySelector('.current-search-highlight');
+      if (currentHighlight) {
+        currentHighlight.classList.remove('current-search-highlight');
+      }
+      
+      targetMessage.classList.add('current-search-highlight');
     }
   };
 
+  // Update navigation functions to be more reliable
   const handleNextSearch = () => {
     if (searchResults.length > 0) {
       const nextIndex = (currentSearchIndex + 1) % searchResults.length;
       setCurrentSearchIndex(nextIndex);
-      scrollToMessage(searchResults[nextIndex]);
+      requestAnimationFrame(() => {
+        scrollToMessage(nextIndex);
+      });
     }
   };
 
@@ -727,11 +795,13 @@ function MessPage() {
     if (searchResults.length > 0) {
       const prevIndex = currentSearchIndex <= 0 ? searchResults.length - 1 : currentSearchIndex - 1;
       setCurrentSearchIndex(prevIndex);
-      scrollToMessage(searchResults[prevIndex]);
+      requestAnimationFrame(() => {
+        scrollToMessage(prevIndex);
+      });
     }
   };
 
-  // Add keyboard shortcuts for search navigation
+  // Update keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (showSearch && searchResults.length > 0) {
@@ -748,6 +818,14 @@ function MessPage() {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showSearch, searchResults, currentSearchIndex]);
+
+  // Update search close handler to just clear states
+  const handleCloseSearch = () => {
+    setShowSearch(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setCurrentSearchIndex(-1);
+  };
 
   // Update message rendering to include edit button and edited indicator
   const MessageContent = ({ msg }) => {
@@ -907,6 +985,50 @@ function MessPage() {
     </div>
   );
 
+  // Update the scrollToBottom function for smoother behavior
+  const scrollToBottom = (behavior = 'smooth') => {
+    if (messageContainerRef.current) {
+      const { scrollHeight, clientHeight } = messageContainerRef.current;
+      messageContainerRef.current.scrollTo({
+        top: scrollHeight - clientHeight,
+        behavior,
+        // Add a small offset to ensure the message is fully visible
+        offset: 20
+      });
+    }
+  };
+
+  // Update scroll detection for better arrow button behavior
+  const handleScroll = () => {
+    if (messageContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messageContainerRef.current;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      setShowScrollBottom(distanceFromBottom > 50); // Show button when not at bottom
+    }
+  };
+
+  // Update the effect for new messages
+  useEffect(() => {
+    if (messageContainerRef.current && allMessage.length > 0 && !showSearch) {
+      const { scrollTop, scrollHeight, clientHeight } = messageContainerRef.current;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Auto-scroll if user is near bottom (100px threshold) or if the new message is from the current user
+      const lastMessage = allMessage[allMessage.length - 1];
+      const isFromCurrentUser = lastMessage?.msgByUserId === user?._id;
+      
+      if (distanceFromBottom < 100 || isFromCurrentUser) {
+        requestAnimationFrame(() => {
+          scrollToBottom('smooth');
+          setShowScrollBottom(false);
+        });
+      } else {
+        // Show scroll button if we're not scrolling automatically
+        setShowScrollBottom(true);
+      }
+    }
+  }, [allMessage, showSearch]);
+
   return (
     <div className="relative">
       <div
@@ -916,149 +1038,149 @@ function MessPage() {
         <div className="absolute inset-0 bg-[#222222] bg-opacity-30 backdrop-blur-sm"></div>
       </div>
       <div className="relative flex flex-col h-screen">
-        <header className="sticky top-0 bg-[#202c33] text-white z-10">
-          <div className="container mx-auto flex justify-between items-center p-2.5 rounded-lg">
-            {!showSearch ? (
-              <>
-                <div className="flex items-center gap-4 lg:ml-3">
-                  <Link className="lg:hidden" to={"/"}>
-                    <FaAngleLeft size={25} />
-                  </Link>
-                  {isLoading ? (
-                    <div className="animate-pulse flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-600 rounded-full"></div>
-                      <div>
-                        <div className="h-4 w-24 bg-gray-600 rounded"></div>
-                        <div className="h-3 w-16 bg-gray-600 rounded mt-2"></div>
-                      </div>
+        <header className="sticky top-0 bg-[#313338] text-white z-10 h-[48px] border-b border-[#1e1f22] flex items-center">
+          {!showSearch ? (
+            <>
+              <div className="flex-1 flex items-center min-w-0 h-full px-4">
+                <Link className="lg:hidden mr-2 p-2 hover:bg-[#404249] rounded-full transition-colors" to={"/"}>
+                  <FaAngleLeft className="text-[#b5bac1] text-xl" />
+                </Link>
+                {isLoading ? (
+                  <div className="animate-pulse flex items-center gap-3">
+                    <div className="w-8 h-8 bg-[#404249] rounded-full"></div>
+                    <div className="flex-1">
+                      <div className="h-4 w-24 bg-[#404249] rounded"></div>
+                      <div className="h-3 w-16 bg-[#404249] rounded mt-2"></div>
                     </div>
-                  ) : loadError ? (
-                    <div className="text-red-400">{loadError}</div>
-                  ) : (
-                    <>
+                  </div>
+                ) : loadError ? (
+                  <div className="text-red-400">{loadError}</div>
+                ) : (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative flex-shrink-0">
                       <Avatar
-                        width={50}
-                        height={50}
+                        width={32}
+                        height={32}
                         imageUrl={dataUser?.profile_pic}
                         name={dataUser?.name}
                         userId={dataUser?._id}
                       />
-                      <div>
-                        <h3 className="font-semibold text-lg text-ellipsis line-clamp-1">
-                          {dataUser?.name}
-                        </h3>
-                        <p className="text-sm font-semibold">
-                          {Array.isArray(onlineUsers) && onlineUsers.includes(dataUser?._id) ? (
-                            <span className="text-green-600">Online</span>
-                          ) : (
-                            <span className="text-gray-300">Offline</span>
-                          )}
-                        </p>
-                      </div>
+                      {Array.isArray(onlineUsers) && onlineUsers.includes(dataUser?._id) && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-[13px] h-[13px] bg-[#313338] rounded-full flex items-center justify-center">
+                          <div className="w-2.5 h-2.5 bg-[#23a559] rounded-full"></div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-[16px] text-[#f3f4f5] truncate">
+                        {dataUser?.name}
+                      </h3>
+                      <p className="text-[12px] font-medium">
+                        {Array.isArray(onlineUsers) && onlineUsers.includes(dataUser?._id) ? (
+                          <span className="text-[#a1a3a6]">Online</span>
+                        ) : (
+                          <span className="text-[#a1a3a6]">Offline</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center h-full px-4 gap-1">
+                <button 
+                  onClick={() => setShowSearch(true)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#404249] transition-colors"
+                  title="Search"
+                >
+                  <FaSearch className="text-[#b5bac1] text-lg" />
+                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#404249] transition-colors"
+                    title="More"
+                  >
+                    <HiDotsVertical className="text-[#b5bac1] text-xl" />
+                  </button>
+                  
+                  {showMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-[#313338] rounded-md shadow-lg border border-[#1e1f22] overflow-hidden z-50">
+                      {isBlocked ? (
+                        <button
+                          onClick={handleUnblockUser}
+                          className="flex items-center w-full px-3 py-2 text-[14px] text-[#dbdee1] hover:bg-[#404249] transition-colors"
+                        >
+                          <FaUnlock className="mr-2 text-[#dbdee1]" />
+                          Unblock User
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleBlockUser}
+                          className="flex items-center w-full px-3 py-2 text-[14px] text-[#f23f42] hover:bg-[#404249] transition-colors"
+                        >
+                          <FaBan className="mr-2" />
+                          Block User
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center w-full h-full px-2 gap-2">
+              <button 
+                onClick={handleCloseSearch}
+                className="p-2 hover:bg-[#404249] rounded-full transition-colors"
+              >
+                <FaTimes className="text-[#b5bac1]" />
+              </button>
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search in chat..."
+                  className="w-full bg-[#1e1f22] text-[#dbdee1] rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#5865f2] placeholder-[#949ba4]"
+                  autoFocus
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={exactWordMatch}
+                      onChange={(e) => setExactWordMatch(e.target.checked)}
+                      className="form-checkbox h-3 w-3 text-[#5865f2] rounded border-[#72767d] focus:ring-0"
+                    />
+                    <span className="text-[#b5bac1] text-xs">Match words</span>
+                  </label>
+                  {searchResults.length > 0 && (
+                    <>
+                      <span className="text-xs text-[#b5bac1] border-l border-[#4f545c] pl-4">
+                        {currentSearchIndex + 1}/{searchResults.length}
+                      </span>
                     </>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => setShowSearch(true)}
-                    className="cursor-pointer p-2 hover:bg-[#323131] rounded-full"
-                  >
-                    <FaSearch className="text-xl text-gray-600" />
-                  </button>
-                  <div className="relative">
-                    <button 
-                      onClick={() => setShowMenu(!showMenu)}
-                      className="cursor-pointer p-2 hover:bg-[#323131] rounded-full"
-                    >
-                      <HiDotsVertical className="text-2xl text-gray-600" />
-                    </button>
-                    
-                    {showMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-[#202c33] rounded-md shadow-lg z-50">
-                        {isBlocked ? (
-                          <button
-                            onClick={handleUnblockUser}
-                            className="flex items-center w-full px-4 py-2 text-sm text-gray-300 hover:bg-[#323131]"
-                          >
-                            <FaUnlock className="mr-2" />
-                            Unblock User
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleBlockUser}
-                            className="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-[#323131]"
-                          >
-                            <FaBan className="mr-2" />
-                            Block User
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center w-full gap-2 px-2">
-                <button 
-                  onClick={() => {
-                    setShowSearch(false);
-                    setSearchQuery("");
-                    setSearchResults([]);
-                  }}
-                  className="p-2 hover:bg-[#323131] rounded-full"
-                >
-                  <FaTimes className="text-gray-600" />
-                </button>
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search in chat..."
-                    className="w-full bg-[#323739] text-white rounded-lg px-4 py-2 focus:outline-none"
-                    autoFocus
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={exactWordMatch}
-                        onChange={(e) => setExactWordMatch(e.target.checked)}
-                        className="form-checkbox h-3 w-3 text-blue-500 rounded"
-                      />
-                      <span className="text-gray-400">Match whole words</span>
-                    </label>
-                    {searchResults.length > 0 && (
-                      <>
-                        <span className="text-sm text-gray-400 border-l border-gray-600 pl-4">
-                          {currentSearchIndex + 1}/{searchResults.length}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          (Press Enter ↵)
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <button 
-                  onClick={handlePreviousSearch}
-                  className="p-2 hover:bg-[#323131] rounded-full disabled:opacity-50"
-                  disabled={searchResults.length === 0}
-                  title="Previous (Shift + Enter)"
-                >
-                  <FaArrowUp className="text-gray-600" />
-                </button>
-                <button 
-                  onClick={handleNextSearch}
-                  className="p-2 hover:bg-[#323131] rounded-full disabled:opacity-50"
-                  disabled={searchResults.length === 0}
-                  title="Next (Enter)"
-                >
-                  <FaArrowDown className="text-gray-600" />
-                </button>
               </div>
-            )}
-          </div>
+              <button 
+                onClick={handlePreviousSearch}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#404249] transition-colors disabled:opacity-50"
+                disabled={searchResults.length === 0}
+                title="Previous (Shift + Enter)"
+              >
+                <FaArrowUp className="text-[#b5bac1]" />
+              </button>
+              <button 
+                onClick={handleNextSearch}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#404249] transition-colors disabled:opacity-50"
+                disabled={searchResults.length === 0}
+                title="Next (Enter)"
+              >
+                <FaArrowDown className="text-[#b5bac1]" />
+              </button>
+            </div>
+          )}
         </header>
 
         {isBlocked && (
@@ -1067,18 +1189,11 @@ function MessPage() {
           </div>
         )}
 
-        <section className={`${getMessageSectionHeight()} overflow-x-hidden overflow-y-scroll scrollbar-messages flex-grow`}>
-          {isLoading ? (
-            <div className="flex flex-col gap-4 p-4">
-              <div className="animate-pulse flex flex-col gap-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex justify-start">
-                    <div className="bg-gray-600 h-10 w-48 rounded-lg"></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : loadError ? (
+        <section 
+          ref={messageContainerRef}
+          className={`${getMessageSectionHeight()} overflow-x-hidden overflow-y-scroll scrollbar-messages flex-grow relative`}
+        >
+          {loadError ? (
             <div className="flex flex-col items-center justify-center h-full">
               <p className="text-red-400 mb-4">{loadError}</p>
               <button
@@ -1278,6 +1393,7 @@ function MessPage() {
                     
                     return groups;
                   }, [])}
+                  <div ref={messagesEndRef} /> {/* Add this at the end of messages */}
                 </>
               ) : (
                 <div className="text-center text-gray-400 py-4">
@@ -1377,6 +1493,29 @@ function MessPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Add scroll to bottom button */}
+          {showScrollBottom && (
+            <button
+              onClick={() => scrollToBottom('smooth')}
+              className="fixed bottom-20 right-6 w-11 h-11 bg-[#23a559] hover:bg-[#1e9150] text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 transform hover:scale-105 z-10 animate-fade-in"
+              title="Scroll to bottom"
+            >
+              <svg 
+                className="w-6 h-6" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2.5} 
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
+              </svg>
+            </button>
           )}
         </section>
 
