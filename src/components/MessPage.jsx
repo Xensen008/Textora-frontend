@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 import Avatar from "./Avatar";
 import { HiDotsVertical } from "react-icons/hi";
-import { FaAngleLeft, FaTrash, FaBan, FaUnlock, FaPen } from "react-icons/fa6";
+import { FaAngleLeft, FaBan, FaUnlock } from "react-icons/fa6";
 import { FaCirclePlus } from "react-icons/fa6";
 import { FaImage } from "react-icons/fa6";
 import { FaVideo } from "react-icons/fa6";
@@ -86,7 +86,6 @@ function MessPage() {
   const [currentConversation, setCurrentConversation] = useState(null);
   const currentMessage = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
-  const [messageToDelete, setMessageToDelete] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
 
@@ -95,9 +94,6 @@ function MessPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-
-  const [messageToEdit, setMessageToEdit] = useState(null);
-  const [editText, setEditText] = useState("");
 
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -253,16 +249,49 @@ function MessPage() {
         socketConnection.off("message");
         socketConnection.off("new_message");
         socketConnection.off("error");
-        socketConnection.off("delete_success");
         socketConnection.off("message_status_update");
         socketConnection.off("messages_seen_batch");
-        socketConnection.off("force_message_update");
         socketConnection.off('block_success');
         socketConnection.off('unblock_success');
       };
 
       cleanupListeners();
-      
+
+      // Remove delete-related socket handlers
+      socketConnection.on("message", (data) => {
+        if (data && Array.isArray(data.messages)) {
+          if (!currentConversation || 
+              data.conversationId === currentConversation ||
+              (data.participants && 
+               (data.participants.sender === userId || data.participants.receiver === userId))) {
+            
+            if (isBlocked) {
+              setAllMessage([]);
+              setMessageStatuses({});
+              return;
+            }
+
+            setAllMessage(data.messages);
+            setCurrentConversation(data.conversationId);
+
+            // Mark messages as seen in batch
+            const unseenMessages = data.messages.filter(msg => 
+              msg.msgByUserId !== user?._id && !msg.seen
+            );
+
+            if (unseenMessages.length > 0 && socketConnection && data.conversationId) {
+              unseenMessages.forEach(msg => {
+                socketConnection.emit('message_seen', {
+                  messageId: msg._id,
+                  conversationId: data.conversationId
+                });
+              });
+            }
+          }
+        }
+      });
+
+      // Keep other existing socket handlers
       socketConnection.on("message-user", (data) => {
         if (data.user._id === userId) {
           setDataUser(data.user);
@@ -343,65 +372,6 @@ function MessPage() {
         }
       });
 
-      // Handle initial messages and updates
-      socketConnection.on("message", (data) => {
-        if (data && Array.isArray(data.messages)) {
-          if (!currentConversation || 
-              data.conversationId === currentConversation ||
-              (data.participants && 
-               (data.participants.sender === userId || data.participants.receiver === userId))) {
-            
-            if (isBlocked) {
-              setAllMessage([]);
-              setMessageStatuses({});
-              return;
-            }
-
-            const updatedMessages = data.messages.filter(msg => 
-              !(msg.deleted && msg.msgByUserId === user?._id)
-            );
-            
-            // Update message statuses in batch
-            setMessageStatuses(prev => {
-              const newStatuses = { ...prev };
-              updatedMessages.forEach(msg => {
-                if (msg.status && (!newStatuses[msg._id] || getStatusPriority(msg.status) > getStatusPriority(newStatuses[msg._id]))) {
-                  newStatuses[msg._id] = msg.status;
-                }
-              });
-              return newStatuses;
-            });
-            
-            setAllMessage(updatedMessages);
-            setCurrentConversation(data.conversationId);
-
-            // Mark messages as seen in batch
-            const unseenMessages = updatedMessages.filter(msg => 
-              msg.msgByUserId !== user?._id && msg.status !== 'seen'
-            );
-
-            if (unseenMessages.length > 0 && socketConnection && data.conversationId) {
-              // Update local status immediately for all unseen messages
-              setMessageStatuses(prev => {
-                const newStatuses = { ...prev };
-                unseenMessages.forEach(msg => {
-                  newStatuses[msg._id] = 'seen';
-                });
-                return newStatuses;
-              });
-
-              // Send seen status to server for all messages at once
-              unseenMessages.forEach(msg => {
-                socketConnection.emit('message_seen', {
-                  messageId: msg._id,
-                  conversationId: data.conversationId
-                });
-              });
-            }
-          }
-        }
-      });
-
       // Handle message status updates
       socketConnection.on("message_status_update", ({ messageId, status, deliveredAt, seenAt }) => {
         setMessageStatuses(prev => {
@@ -425,36 +395,6 @@ function MessPage() {
           }
           return prev;
         });
-      });
-
-      socketConnection.on("delete_success", ({ messageId }) => {
-        console.log("Message deleted successfully:", messageId);
-        toast.success("Message deleted successfully");
-        
-        setAllMessage(prevMessages => 
-          prevMessages.filter(msg => msg._id !== messageId)
-        );
-
-        socketConnection.emit("force_message_update", {
-          messageId,
-          conversationId: currentConversation,
-          receiverId: userId
-        });
-      });
-
-      socketConnection.on("force_message_update", ({ messageId }) => {
-        setAllMessage(prevMessages => 
-          prevMessages.map(msg => 
-            msg._id === messageId 
-              ? { ...msg, deleted: true }
-              : msg
-          )
-        );
-      });
-
-      socketConnection.on("error", (error) => {
-        console.error("Socket error:", error);
-        toast.error(error);
       });
 
       socketConnection.on('block_success', ({ blockedUserId }) => {
@@ -539,25 +479,6 @@ function MessPage() {
     }
   };
 
-  const handleDeleteMessage = (message) => {
-    setMessageToDelete(message);
-  };
-
-  const confirmDelete = () => {
-    if (messageToDelete && socketConnection && currentConversation) {
-      try {
-        socketConnection.emit('delete_message', {
-          messageId: messageToDelete._id,
-          conversationId: currentConversation
-        });
-        setMessageToDelete(null);
-      } catch (error) {
-        console.error("Error deleting message:", error);
-        toast.error("Failed to delete message");
-      }
-    }
-  };
-
   const handleBlockUser = () => {
     if (socketConnection && userId) {
       socketConnection.emit('block_user', { userIdToBlock: userId });
@@ -624,20 +545,6 @@ function MessPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Update the isMessageEditable function to be more precise
-  const isMessageEditable = (messageTime) => {
-    if (!messageTime) return false;
-    const timeDifference = moment().diff(moment(messageTime), 'minutes', true); // Use true for floating-point precision
-    return timeDifference <= 15;
-  };
-
-  // Update the isMessageDeletable function to be more precise
-  const isMessageDeletable = (messageTime) => {
-    if (!messageTime) return false;
-    const timeDifference = moment().diff(moment(messageTime), 'minutes', true); // Use true for floating-point precision
-    return timeDifference <= 15;
-  };
-
   // Add this component for the date header
   const DateHeader = ({ date }) => (
     <div className="flex justify-center my-4">
@@ -646,47 +553,6 @@ function MessPage() {
       </div>
     </div>
   );
-
-  // Add handler for message edit
-  const handleEditMessage = (message) => {
-    setMessageToEdit(message);
-    setEditText(message.text);
-  };
-
-  // Add function to save edited message
-  const saveEditedMessage = () => {
-    if (messageToEdit && socketConnection && currentConversation) {
-      try {
-        socketConnection.emit('edit_message', {
-          messageId: messageToEdit._id,
-          newText: editText,
-          conversationId: currentConversation
-        });
-        setMessageToEdit(null);
-        setEditText("");
-      } catch (error) {
-        console.error("Error editing message:", error);
-        toast.error("Failed to edit message");
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (socketConnection) {
-      // Add listener for edited messages
-      socketConnection.on('message_edited', ({ messageId, updatedMessage }) => {
-        setAllMessage(prevMessages => 
-          prevMessages.map(msg => 
-            msg._id === messageId ? { ...msg, ...updatedMessage } : msg
-          )
-        );
-      });
-
-      return () => {
-        socketConnection.off('message_edited');
-      };
-    }
-  }, [socketConnection]);
 
   // Update search effect to be more stable and handle message updates properly
   useEffect(() => {
@@ -827,163 +693,85 @@ function MessPage() {
     setCurrentSearchIndex(-1);
   };
 
-  // Update message rendering to include edit button and edited indicator
+  // Update message rendering to remove edit button
   const MessageContent = ({ msg }) => {
     return (
-      <>
-        {!msg.deleted && user?._id === msg.msgByUserId && (isMessageEditable(msg.sentAt || msg.createdAt) || isMessageDeletable(msg.sentAt || msg.createdAt)) && (
-          <div className="absolute top-1 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 px-2 py-1 bg-[#202c33]/90 rounded-l-lg -mr-1">
-            {isMessageEditable(msg.sentAt || msg.createdAt) && (
-              <button
-                onClick={() => handleEditMessage(msg)}
-                className="p-1 rounded-full hover:bg-[#ffffff1a] transition-colors"
-                title="Edit message (available for 15 minutes)"
-              >
-                <FaPen className="text-[#e9edef] w-3 h-3" />
-              </button>
-            )}
-            {isMessageDeletable(msg.sentAt || msg.createdAt) && (
-              <button
-                onClick={() => handleDeleteMessage(msg)}
-                className="p-1 rounded-full hover:bg-[#ffffff1a] transition-colors"
-                title="Delete message (available for 15 minutes)"
-              >
-                <FaTrash className="text-[#e9edef] w-3 h-3" />
-              </button>
-            )}
-          </div>
-        )}
-        
-        {msg.deleted && msg.msgByUserId !== user?._id ? (
-          <div className="flex items-center gap-2 text-gray-400 italic">
-            <FaTrash className="w-3 h-3" />
-            <span className="text-sm">Message was deleted</span>
-          </div>
-        ) : !msg.deleted ? (
-          msg.imageUrl ? (
-            <div className="md:w-22 aspect-square w-[95%] h-full max-w-sm m-2 object-scale-down">
+      <div className={`relative ${
+        msg.imageUrl || msg.videoUrl ? "max-w-[420px] w-full" : "max-w-full"
+      } ${
+        user?._id === msg.msgByUserId
+          ? "bg-[#36393f] hover:bg-[#3c3f45]"
+          : "bg-[#2b2d31] hover:bg-[#313338]"
+      } rounded-2xl ${
+        user?._id === msg.msgByUserId 
+          ? "rounded-tr-md" 
+          : "rounded-tl-md"
+      } shadow-sm transition-colors duration-200`}>
+        <div className="flex flex-col w-full overflow-hidden">
+          {msg.imageUrl && (
+            <div className="relative w-full">
               <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
                 <img
                   src={msg.imageUrl}
-                  className="object-cover h-[320px] rounded-lg"
+                  className="w-full h-auto rounded-t-2xl object-cover max-h-[300px]"
                   alt=""
                 />
               </a>
-              <div className="mt-2">
-                <div className="flex-1">
-                  <p className="text-lg break-words">
-                    {msg.text ? highlightText(msg.text, msg) : msg.text}
-                  </p>
-                </div>
-                {user?._id === msg.msgByUserId && (
-                  <div className="flex justify-end mt-1">
-                    <MessageStatus 
-                      messageId={msg._id} 
-                      createdAt={msg.createdAt}
-                      message={msg} 
-                    />
-                  </div>
-                )}
-              </div>
             </div>
-          ) : msg.videoUrl ? (
-            <div className="md:w-22 w-full h-full max-w-sm m-2 p-0">
+          )}
+          {msg.videoUrl && (
+            <div className="relative w-full">
               <video
                 controls
-                className="w-[250px] h-auto m-0 rounded-lg" 
+                className="w-full h-auto rounded-t-2xl" 
                 src={msg.videoUrl}
-              >
-              </video>
-              <div className="mt-2">
-                <div className="flex-1">
-                  <p className="text-lg break-words">
+              />
+            </div>
+          )}
+          
+          <div className={`${
+            msg.imageUrl || msg.videoUrl 
+              ? 'p-2 pt-1.5' 
+              : 'px-3 py-2'
+          }`}>
+            <div className="flex flex-col">
+              {msg.text && (
+                <div className="flex items-end gap-1.5">
+                  <p className="text-[15px] text-[#dbdee1] leading-[21px] tracking-[0.2px] whitespace-pre-wrap break-words flex-1 min-w-0">
                     {msg.text ? highlightText(msg.text, msg) : msg.text}
                   </p>
-                </div>
-                {user?._id === msg.msgByUserId && (
-                  <div className="flex justify-end mt-1">
-                    <MessageStatus 
-                      messageId={msg._id} 
-                      createdAt={msg.createdAt}
-                      message={msg} 
-                    />
+                  <div className="flex items-center gap-0.5 flex-shrink-0 mb-[1px] ml-1">
+                    <span className="text-[11px] text-[#949ba4] min-w-[42px] text-right">
+                      {moment(msg.sentAt || msg.createdAt).format("h:mm A")}
+                    </span>
+                    {user?._id === msg.msgByUserId && (
+                      <div className="text-[#949ba4] ml-0.5">
+                        {messageStatuses[msg._id] === 'sent' && (
+                          <BsCheck className="w-[15px] h-[15px]" title="Sent" />
+                        )}
+                        {messageStatuses[msg._id] === 'delivered' && (
+                          <BsCheckAll 
+                            className="w-[15px] h-[15px]" 
+                            title={`Delivered ${msg.deliveredAt ? moment(msg.deliveredAt).format('MMM D, h:mm A') : ''}`}
+                          />
+                        )}
+                        {messageStatuses[msg._id] === 'seen' && (
+                          <BsCheckAll 
+                            className="w-[15px] h-[15px] text-[#949cf7]" 
+                            title={`Seen ${msg.seenAt ? moment(msg.seenAt).format('MMM D, h:mm A') : ''}`}
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="flex justify-between items-start w-full gap-2">
-              <div className="flex-1">
-                <p className="text-lg break-words">
-                  {msg.text ? highlightText(msg.text, msg) : msg.text}
-                </p>
-              </div>
-              <div className="flex-shrink-0 self-end">
-                {user?._id === msg.msgByUserId ? (
-                  <MessageStatus 
-                    messageId={msg._id} 
-                    createdAt={msg.createdAt}
-                    message={msg} 
-                  />
-                ) : (
-                  <span className="text-xs text-slate-300">
-                    {moment(msg.createdAt).format("hh:mm A")}
-                  </span>
-                )}
-              </div>
-            </div>
-          )
-        ) : null}
-      </>
-    );
-  };
-
-  // Add edit message modal
-  const EditMessageModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#202c33] p-6 rounded-lg shadow-xl max-w-lg w-full mx-4">
-        <h3 className="text-xl font-semibold text-white mb-4">Edit Message</h3>
-        <textarea
-          value={editText}
-          onChange={(e) => {
-            // Limit text to 1000 characters
-            if (e.target.value.length <= 1000) {
-              setEditText(e.target.value);
-            }
-          }}
-          onFocus={(e) => {
-            // Set cursor to end of text
-            const len = e.target.value.length;
-            e.target.setSelectionRange(len, len);
-          }}
-          autoFocus
-          className="w-full p-4 bg-[#323739] text-white rounded-lg mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] text-base"
-          placeholder="Type your message..."
-          rows="4"
-        />
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-[#8696a0]">
-            {editText.length}/1000 characters
-          </span>
-          <div className="flex justify-end gap-4">
-            <button
-              onClick={() => setMessageToEdit(null)}
-              className="px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={saveEditedMessage}
-              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!editText.trim() || editText.length > 1000}
-            >
-              Save
-            </button>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Update the scrollToBottom function for smoother behavior
   const scrollToBottom = (behavior = 'smooth') => {
@@ -1315,8 +1103,7 @@ function MessPage() {
                                     controls
                                     className="w-full h-auto rounded-t-2xl" 
                                     src={msg.videoUrl}
-                                  >
-                                  </video>
+                                  />
                                 </div>
                               )}
                               
@@ -1361,31 +1148,6 @@ function MessPage() {
                                 </div>
                               </div>
                             </div>
-
-                            {/* Edit/Delete buttons */}
-                            {!msg.deleted && user?._id === msg.msgByUserId && 
-                             (isMessageEditable(msg.sentAt || msg.createdAt) || isMessageDeletable(msg.sentAt || msg.createdAt)) && (
-                              <div className="absolute -top-8 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 px-2 py-1 bg-[#2b2d31]/90 backdrop-blur-sm rounded-md">
-                                {isMessageEditable(msg.sentAt || msg.createdAt) && (
-                                  <button
-                                    onClick={() => handleEditMessage(msg)}
-                                    className="p-1 rounded-full hover:bg-[#ffffff1a] transition-colors"
-                                    title="Edit message (available for 15 minutes)"
-                                  >
-                                    <FaPen className="text-[#b5bac1] w-3 h-3" />
-                                  </button>
-                                )}
-                                {isMessageDeletable(msg.sentAt || msg.createdAt) && (
-                                  <button
-                                    onClick={() => handleDeleteMessage(msg)}
-                                    className="p-1 rounded-full hover:bg-[#ffffff1a] transition-colors"
-                                    title="Delete message (available for 15 minutes)"
-                                  >
-                                    <FaTrash className="text-[#b5bac1] w-3 h-3" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -1593,31 +1355,6 @@ function MessPage() {
           </form>
         </section>
       </div>
-
-      {messageToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-[#202c33] p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
-            <h3 className="text-xl font-semibold text-white mb-4">Delete Message?</h3>
-            <p className="text-gray-300 mb-6">This message will be deleted for everyone in this chat. This action cannot be undone.</p>
-            <div className="flex justify-end gap-4">
-              <button
-                onClick={() => setMessageToDelete(null)}
-                className="px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {messageToEdit && <EditMessageModal />}
     </div>
   );
 }
