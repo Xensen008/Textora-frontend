@@ -11,7 +11,6 @@ import { FaSearch, FaArrowUp, FaArrowDown, FaTimes } from "react-icons/fa";
 import uploadFile from "../utils/uploadFile";
 import { IoClose } from "react-icons/io5";
 import { toast } from "react-hot-toast";
-import backgroundImage from "../assets/wallpaper.jpg";
 import { IoMdSend } from "react-icons/io";
 import moment from "moment";
 import { BsCheck, BsCheckAll } from "react-icons/bs";
@@ -56,6 +55,84 @@ if (!document.getElementById('additional-styles')) {
   const styleSheet = document.createElement("style");
   styleSheet.id = 'additional-styles';
   styleSheet.textContent = additionalStyles;
+  document.head.appendChild(styleSheet);
+}
+
+// Update dark theme styles with subtle doodle pattern
+const chatBackgroundStyles = `
+  .chat-background {
+    background: linear-gradient(160deg, #111b21 0%, #202c33 100%);
+    position: relative;
+    color: #e9edef;
+  }
+
+  .chat-background::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M25 25h10v10H25zM45 25h10v10H45zM65 25h10v10H65zM25 45h10v10H25zM45 45h10v10H45zM65 45h10v10H65zM25 65h10v10H25zM45 65h10v10H45zM65 65h10v10H65z'/%3E%3Cpath d='M15 15c0 2.7614-2.2386 5-5 5s-5-2.2386-5-5 2.2386-5 5-5 5 2.2386 5 5zM35 15c0 2.7614-2.2386 5-5 5s-5-2.2386-5-5 2.2386-5 5-5 5 2.2386 5 5zM55 15c0 2.7614-2.2386 5-5 5s-5-2.2386-5-5 2.2386-5 5-5 5 2.2386 5 5zM75 15c0 2.7614-2.2386 5-5 5s-5-2.2386-5-5 2.2386-5 5-5 5 2.2386 5 5zM15 35c0 2.7614-2.2386 5-5 5s-5-2.2386-5-5 2.2386-5 5-5 5 2.2386 5 5zM35 35c0 2.7614-2.2386 5-5 5s-5-2.2386-5-5 2.2386-5 5-5 5 2.2386 5 5zM55 35c0 2.7614-2.2386 5-5 5s-5-2.2386-5-5 2.2386-5 5-5 5 2.2386 5 5zM75 35c0 2.7614-2.2386 5-5 5s-5-2.2386-5-5 2.2386-5 5-5 5 2.2386 5 5z'/%3E%3C/g%3E%3C/svg%3E"),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-position: center;
+    opacity: 0.4;
+    mix-blend-mode: soft-light;
+    pointer-events: none;
+  }
+
+  .chat-background::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(32, 44, 51, 0.3) 100%);
+    pointer-events: none;
+  }
+
+  .message-container {
+    background-color: transparent;
+    position: relative;
+    z-index: 1;
+  }
+
+  .message-bubble-sent {
+    background-color: #005c4b;
+    color: #e9edef;
+    border-radius: 8px 8px 2px 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .message-bubble-sent::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.03) 75%, transparent 75%, transparent);
+    background-size: 4px 4px;
+    opacity: 0.1;
+  }
+
+  .message-bubble-received {
+    background-color: #202c33;
+    color: #e9edef;
+    border-radius: 8px 8px 8px 2px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .message-bubble-received::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.02) 75%, transparent 75%, transparent);
+    background-size: 4px 4px;
+    opacity: 0.1;
+  }
+`;
+
+if (!document.getElementById('chat-background-styles')) {
+  const styleSheet = document.createElement("style");
+  styleSheet.id = 'chat-background-styles';
+  styleSheet.textContent = chatBackgroundStyles;
   document.head.appendChild(styleSheet);
 }
 
@@ -818,10 +895,9 @@ function MessPage() {
   }, [allMessage, showSearch]);
 
   return (
-    <div className="relative">
+    <div className="relative chat-background">
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${backgroundImage})` }}
       >
         <div className="absolute inset-0 bg-[#222222] bg-opacity-30 backdrop-blur-sm"></div>
       </div>
