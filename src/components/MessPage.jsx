@@ -1136,7 +1136,7 @@ function MessPage() {
 
                         <div className={`flex flex-col ${
                           user?._id === msg.msgByUserId ? "items-end" : "items-start"
-                        } max-w-[75%] lg:max-w-[65%]`}>
+                        } max-w-[90%] sm:max-w-[75%] lg:max-w-[65%]`}>
                           {/* Show name for first message in sequence */}
                           {shouldShowAvatar(index) && user?._id !== msg.msgByUserId && (
                             <span className="text-[13px] text-[#949cf7] font-medium ml-0.5 mb-0.5">
@@ -1145,8 +1145,8 @@ function MessPage() {
                           )}
                           
                           <div
-                            className={`relative ${
-                              msg.imageUrl || msg.videoUrl ? "max-w-[420px] w-full" : "max-w-full"
+                            className={`relative inline-block ${
+                              msg.imageUrl || msg.videoUrl ? "max-w-[280px] sm:max-w-[420px] w-full" : "max-w-full"
                             } ${
                               msg.deleted 
                                 ? "bg-gray-700/50" 
@@ -1159,8 +1159,7 @@ function MessPage() {
                                 : "rounded-tl-md"
                             } shadow-sm transition-colors duration-200`}
                           >
-                            {/* Message content container */}
-                            <div className="flex flex-col w-full overflow-hidden">
+                            <div className="flex flex-col overflow-hidden break-words">
                               {/* Media content */}
                               {msg.imageUrl && (
                                 <div className="relative w-full">
@@ -1191,11 +1190,11 @@ function MessPage() {
                               }`}>
                                 <div className="flex flex-col">
                                   {msg.text && (
-                                    <div className="flex items-end gap-1.5">
-                                      <p className="text-[15px] text-[#dbdee1] leading-[21px] tracking-[0.2px] whitespace-pre-wrap break-words flex-1 min-w-0">
+                                    <div className="flex flex-col sm:flex-row sm:items-end gap-1">
+                                      <p className="text-[15px] text-[#dbdee1] leading-[21px] tracking-[0.2px] whitespace-pre-wrap break-words min-w-0 overflow-hidden">
                                         {msg.text ? highlightText(msg.text, msg) : msg.text}
                                       </p>
-                                      <div className="flex items-center gap-0.5 flex-shrink-0 mb-[1px] ml-1">
+                                      <div className="flex items-center gap-0.5 flex-shrink-0 self-end mt-1 sm:mt-0 sm:ml-1">
                                         <span className="text-[11px] text-[#949ba4] min-w-[42px] text-right">
                                           {moment(msg.sentAt || msg.createdAt).format("h:mm A")}
                                         </span>
