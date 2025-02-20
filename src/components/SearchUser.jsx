@@ -43,8 +43,8 @@ function SearchUser({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/[.85] z-50 flex items-center justify-center">
-      <div className="bg-[#313338] w-full max-w-[440px] rounded-lg shadow-xl">
+    <div className="fixed inset-0 bg-black/[.85] z-50 flex items-center justify-center p-4">
+      <div className="bg-[#313338] w-full max-w-[440px] rounded-lg shadow-xl mx-4">
         <div className="p-4 border-b border-[#3f4147]">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-[#f3f4f5] text-xl font-semibold">Start a Chat</h2>
