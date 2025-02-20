@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import uploadFile from "../utils/uploadFile";
 import axios from "axios";
 import { toast, Toaster } from "react-hot-toast";
+import { BsChatSquareQuoteFill } from 'react-icons/bs';
 
 function RegisterPage() {
   const [data, setData] = useState({
@@ -75,97 +76,157 @@ function RegisterPage() {
   };
 
   return (
-    <div
-      className="flex items-center justify-center min-h-screen"
-      style={{ backgroundColor: "#b7c0b3", paddingTop: 0 }}
-    >
-      <div
-        className="w-full max-w-lg p-8 rounded-xl shadow-lg"
-        style={{ backgroundColor: "#fff" }}
-      >
-        <Toaster position="top-center" />
-        <div className="text-center">
-          <h1 className="text-4xl font-bold" style={{ color: "#082b1a" }}>
-            Welcome To Textora
-          </h1>
-          <h2 className="text-2xl mt-2" style={{ color: "#082b1a" }}>
-            Register
-          </h2>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-4">
-            <input
-              type="text"
-              name="name"
-              placeholder="Full Name*"
-              onChange={handleOnChange}
-              value={data.name}
-              className="input py-2 text-base" // Increased padding and base text size
-              required
-            />
-            <input
-              type="email"
-              name="email"
-              placeholder="Email Address*"
-              onChange={handleOnChange}
-              value={data.email}
-              className="input py-2 text-base" // Increased padding and base text size
-              required
-            />
-            <input
-              type="password"
-              name="password"
-              placeholder="Password*"
-              onChange={handleOnChange}
-              value={data.password}
-              className="input py-2 text-base" // Increased padding and base text size
-              required
-            />
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="profile_pic"
-                className="flex items-center cursor-pointer text-[#082b1a]"
-              >
-                <span className="mr-2">Profile Picture</span>
-                {isUploading ? (
-                  <span>Uploading...</span>
-                ) : (
-                  <span className="text-md">
-                    {data.profile_pic ? "File selected" : "Choose file (optional)"}
-                  </span>
-                )}
-              </label>
-              {data.profile_pic && (
-                <IoClose
-                  className="text-red-500 cursor-pointer"
-                  onClick={handleClear}
-                  size={25}
-                />
-              )}
-              <input
-                type="file"
-                id="profile_pic"
-                name="profile_pic"
-                onChange={handleUploadPic}
-                className="hidden"
-              />
+    <div className="min-h-screen bg-[#1e1e1e] flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-[#2a2a2a] rounded-2xl overflow-hidden shadow-2xl border border-[#404040]">
+        <div className="flex flex-col lg:flex-row min-h-[550px] lg:min-h-0">
+          {/* Left Section - Welcome/Illustration */}
+          <div className="hidden lg:flex lg:w-5/12 bg-[#2a2a2a] flex-col items-center justify-center p-8 xl:p-12">
+            <div className="w-full max-w-sm">
+              <BsChatSquareQuoteFill className="w-16 h-16 xl:w-20 xl:h-20 mx-auto mb-6 xl:mb-8 text-gray-400" />
+              <h1 className="text-2xl xl:text-3xl font-bold text-white mb-3 xl:mb-4 text-center">Join Textora Today</h1>
+              <p className="text-gray-300 text-sm xl:text-base leading-relaxed text-center mb-8 xl:mb-12">
+                Create your account and experience seamless communication with friends and colleagues.
+              </p>
+              <div className="pt-6 xl:pt-8 border-t border-[#404040]">
+                <p className="text-gray-500 text-xs xl:text-sm text-center">
+                  Secure • Fast • Reliable
+                </p>
+              </div>
             </div>
           </div>
-          <button
-            type="submit"
-            className="w-full py-2 mt-4 rounded-full"
-            style={{ backgroundColor: "#0a3822", color: "#fff" }}
-            disabled={isUploading}
-          >
-            Register
-          </button>
-        </form>
-        <p className="mt-4 text-center text-sm" style={{ color: "#082b1a" }}>
-          Already have an account?{" "}
-          <a href="/email" className="font-medium underline">
-            Log in
-          </a>
-        </p>
+
+          {/* Right Section - Form */}
+          <div className="w-full lg:w-7/12 lg:border-l lg:border-[#404040] flex items-center">
+            <div className="w-full px-6 py-8 lg:px-8 xl:px-12 xl:py-10">
+              <Toaster position="top-center" />
+              
+              {/* Mobile Header - Only visible on mobile */}
+              <div className="text-center mb-6 lg:hidden">
+                <h1 className="text-2xl font-bold text-white">Welcome to Textora</h1>
+                <p className="text-gray-300 mt-2">Create your account</p>
+              </div>
+
+              {/* Form Section */}
+              <div className="max-w-sm mx-auto">
+                <h2 className="text-2xl font-bold text-white mb-6 hidden lg:block">Create Account</h2>
+                
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1.5">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        placeholder="Enter your full name"
+                        onChange={handleOnChange}
+                        value={data.name}
+                        className="w-full px-4 py-2.5 bg-[#1e1e1e] border border-[#404040] rounded-lg focus:ring-2 focus:ring-[#505050] focus:border-transparent transition-all duration-200 ease-in-out text-white placeholder-gray-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1.5">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="Enter your email"
+                        onChange={handleOnChange}
+                        value={data.email}
+                        className="w-full px-4 py-2.5 bg-[#1e1e1e] border border-[#404040] rounded-lg focus:ring-2 focus:ring-[#505050] focus:border-transparent transition-all duration-200 ease-in-out text-white placeholder-gray-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1.5">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Create a password"
+                        onChange={handleOnChange}
+                        value={data.password}
+                        className="w-full px-4 py-2.5 bg-[#1e1e1e] border border-[#404040] rounded-lg focus:ring-2 focus:ring-[#505050] focus:border-transparent transition-all duration-200 ease-in-out text-white placeholder-gray-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label
+                          htmlFor="profile_pic"
+                          className="flex items-center cursor-pointer text-gray-300 text-sm font-medium"
+                        >
+                          <span className="mr-2">Profile Picture</span>
+                          {isUploading ? (
+                            <span className="text-gray-400">Uploading...</span>
+                          ) : (
+                            <span className="text-gray-400">
+                              {data.profile_pic ? "File selected" : "(optional)"}
+                            </span>
+                          )}
+                        </label>
+                        {data.profile_pic && (
+                          <IoClose
+                            className="text-red-400 hover:text-red-300 cursor-pointer transition-colors duration-200"
+                            onClick={handleClear}
+                            size={20}
+                          />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('profile_pic').click()}
+                        className="w-full px-4 py-2.5 bg-[#1e1e1e] border border-[#404040] rounded-lg text-left text-gray-400 hover:bg-[#252525] transition-colors duration-200"
+                      >
+                        Choose file...
+                      </button>
+                      <input
+                        type="file"
+                        id="profile_pic"
+                        name="profile_pic"
+                        onChange={handleUploadPic}
+                        className="hidden"
+                        accept="image/*"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-3">
+                    <button
+                      type="submit"
+                      className="w-full px-4 py-2.5 text-white bg-[#404040] rounded-lg hover:bg-[#505050] transition-colors duration-200 ease-in-out font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isUploading}
+                    >
+                      Create Account
+                    </button>
+
+                    <div className="text-center mt-5">
+                      <p className="text-sm text-gray-400">
+                        Already have an account?{" "}
+                        <Link 
+                          to="/email" 
+                          className="font-medium text-white hover:text-gray-300 transition-colors duration-200 ease-in-out"
+                        >
+                          Log in
+                        </Link>
+                      </p>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
