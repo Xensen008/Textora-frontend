@@ -159,7 +159,7 @@ function Home() {
 
         // Add handler for receiving initial conversations
         socket.on("conversations", (data) => {
-          console.log("Received initial conversations:", data);
+          // console.log("Received initial conversations:", data);
           // The data will be handled by your conversations component
         });
 

@@ -42,7 +42,7 @@ function SidebarUser() {
 
       // Handle conversation updates
       socketConnection.on("conversations", (data) => {
-        console.log("Received conversations data:", data);
+        // console.log("Received conversations data:", data);
         if (data && Array.isArray(data.conversations)) {
           const conversationUserData = data.conversations
             .sort((a, b) => {
@@ -61,7 +61,7 @@ function SidebarUser() {
                 lastMessage: ConvoUser.lastMsg
               };
             });
-          console.log("Processed conversation data:", conversationUserData);
+          // console.log("Processed conversation data:", conversationUserData);
           setAllUsers(conversationUserData);
         } else {
           console.warn("Invalid conversation data received:", data);
@@ -77,7 +77,7 @@ function SidebarUser() {
 
       // Handle online status updates
       socketConnection.on("onlineUser", (onlineUsers) => {
-        console.log("Received online users update:", onlineUsers);
+        // console.log("Received online users update:", onlineUsers);
         setAllUsers(prevUsers => 
           prevUsers.map(user => ({
             ...user,
